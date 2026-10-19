@@ -35,7 +35,7 @@ const CONFIG = {
   // الترتيب الإجباري: OC → HR → Media → PR
   committeeOrder: ["oc", "hr", "media", "pr"],
   committees: {
-    oc: { icon: "📅", code: "OC", ar: "التنظيم", en: "Operations Committee",
+    oc: { icon: "💪", code: "OC", ar: "التنظيم", en: "Operations Committee",
       intro: { ar: "العمود الفقري لكل فعاليات الأسرة.", en: "The backbone of every event we run." },
       desc: { ar: "هي العمود الفقري لكل فعاليات الأسرة، وبتحوّل أي فكرة لفعالية بتتنفذ على أرض الواقع.", en: "The backbone of all the family's events — it turns any idea into an event that actually happens on the ground." },
       role: { ar: "بتخطط وتنفّذ كل فعالية من أول الفكرة لحد آخر لحظة في اليوم، وبتنسّق شغل باقي اللجان وقت الفعالية.", en: "Plans and runs every event from the first idea to the last minute of the day, coordinating all other committees during the event." },
