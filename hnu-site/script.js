@@ -490,6 +490,7 @@ function adminView(curUser, users) {
   const filteredStudents = users.filter(s => !studentSearchQuery || s.name.toLowerCase().includes(studentSearchQuery.toLowerCase()) || s.college.includes(studentSearchQuery) || (s.com && s.com.includes(studentSearchQuery)));
   const filteredEvalMembers = evaluableMembers.filter(s => !evalSearchQuery || s.name.toLowerCase().includes(evalSearchQuery.toLowerCase()) || (s.nid && s.nid.includes(evalSearchQuery)) || (s.college && s.college.includes(evalSearchQuery)));
   const selectedMember = evaluableMembers.find(s => s.id === selectedEvalStudentId) || filteredEvalMembers[0] || evaluableMembers[0];
+  const attendances = getStore("cf_attendance", []);
   const activeEventAttendees = attendances.filter(a => a.event === activeQr.title);
 
   return `<div class="admin-wrap">
