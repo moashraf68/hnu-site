@@ -1450,7 +1450,7 @@ function printArchivedEventSheet(eventId) {
 }
 
 /* ---------- Portal & Admin event handlers ---------- */
-app.addEventListener("click", e => {
+app.addEventListener("click", async e => {
   if (e.target.closest("#btn-show-register") || e.target.closest("#btn-show-register-sub")) {
     curAuthMode = "register";
     history.replaceState(null, "", "/register");
