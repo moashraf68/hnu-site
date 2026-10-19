@@ -14,6 +14,36 @@ const person = (p, title, cls = "") => `<figure class="person ${cls}"><div class
 const arrow = '<span class="arr" aria-hidden="true">→</span>';
 const list = a => a.map(x => `<li>${t(x)}</li>`).join("");
 
+function getVideoEmbedUrl(url) {
+  if (!url) return '';
+  url = url.trim();
+  const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/i);
+  if (ytMatch && ytMatch[1]) {
+    return `https://www.youtube.com/embed/${ytMatch[1]}`;
+  }
+  return url;
+}
+
+function getGalleryItems() {
+  try {
+    const v = localStorage.getItem("cf_gallery");
+    if (v) {
+      const parsed = JSON.parse(v);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  return C.gallery.map((url, i) => ({
+    id: 'def-' + i,
+    url: url,
+    type: 'IMAGE',
+    title: 'لحظات من أنشطة الأسرة ' + (i + 1)
+  }));
+}
+
+function saveGalleryItems(items) {
+  try { localStorage.setItem("cf_gallery", JSON.stringify(items)); } catch {}
+}
+
 function homeView() {
   const A = C.about, L = C.leadership;
   return `
@@ -44,7 +74,26 @@ function homeView() {
 </div></section>
 
 <section id="gallery" class="sec alt"><div class="wrap"><h2 class="rv">${S("n_gal")}</h2><p class="subh rv">${S("gal_sub")}</p>
-  <div class="gal">${C.gallery.map((g, i) => `<button type="button" class="gi rv" data-g="${i}" aria-label="${S("gimg")} ${i + 1}"><img src="${g}" alt="${S("gimg")} ${i + 1}" width="400" height="300" loading="lazy" data-fb="🖼" data-fbc="fbimg"></button>`).join("")}</div>
+  <div class="gal">${getGalleryItems().map((g, i) => {
+    if (g.type === "VIDEO") {
+      const embedUrl = getVideoEmbedUrl(g.url);
+      const isDirectVideo = g.url.endsWith(".mp4") || g.url.endsWith(".webm");
+      return `<div class="gi rv" style="position:relative;background:#000;overflow:hidden">
+        ${isDirectVideo 
+          ? `<video src="${g.url}" controls style="width:100%;height:100%;object-fit:cover;border-radius:16px"></video>` 
+          : `<iframe src="${embedUrl}" title="${g.title || S("n_gal")}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="width:100%;height:100%;border:none;border-radius:16px"></iframe>`}
+        <span style="position:absolute;top:10px;left:10px;background:rgba(200,16,46,.85);color:#fff;padding:2px 10px;border-radius:8px;font-size:.75rem;font-weight:700;pointer-events:none">🎥 فيديو</span>
+        ${g.title ? `<span style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.8));color:#fff;padding:12px 14px 6px;font-size:.82rem;font-weight:600;pointer-events:none;text-align:right">${g.title}</span>` : ''}
+      </div>`;
+    } else {
+      const imgUrl = g.url || g;
+      const title = g.title || `${S("gimg")} ${i + 1}`;
+      return `<button type="button" class="gi rv" data-g="${i}" aria-label="${title}" style="position:relative;overflow:hidden">
+        <img src="${imgUrl}" alt="${title}" width="400" height="300" loading="lazy" data-fb="🖼" data-fbc="fbimg">
+        ${g.title ? `<span style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.8));color:#fff;padding:12px 14px 6px;font-size:.82rem;font-weight:600;pointer-events:none;text-align:right">${g.title}</span>` : ''}
+      </button>`;
+    }
+  }).join("")}</div>
 </div></section>
 
 <section id="join" class="sec dark"><div class="wrap narrow cta"><h2 class="rv">${S("join_t")}</h2><p class="rv">${S("join_d")}</p>
@@ -376,6 +425,7 @@ function adminView(curUser, users) {
   const isAr = lang === "ar";
   const isSuperAdmin = curUser && (curUser.role === 'SUPER_ADMIN' || curUser.isSuperAdmin === true);
   const sugs = getStore("cf_sugs", INIT_SUGS);
+  const galleryItems = getGalleryItems();
   const activeQr = getStore("cf_active_qr", { active: false, title: "", image: "" });
   const attendances = getStore("cf_attendance", []);
   const eventsArchive = getStore("cf_events_archive", INIT_EVENTS_ARCHIVE);
@@ -407,6 +457,9 @@ function adminView(curUser, users) {
       <button type="button" class="asub-btn ${curAtab === 'evals' ? 'active' : ''}" data-atab="evals">⭐ ${isAr ? 'نظام تقييم الأداء' : 'Evaluations'} (${evaluableMembers.length})</button>
       <button type="button" class="asub-btn ${curAtab === 'qr' ? 'active' : ''}" data-atab="qr">📱 ${isAr ? 'نظام الـ QR والحضور' : 'QR Attendance'} ${activeQr.active ? '🟢' : ''}</button>
       <button type="button" class="asub-btn ${curAtab === 'sugs' ? 'active' : ''}" data-atab="sugs">💡 ${isAr ? 'صندوق الاقتراحات' : 'Suggestions'} (${sugs.filter(x => !x.done).length})</button>
+      ${isSuperAdmin ? `
+        <button type="button" class="asub-btn ${curAtab === 'gallery' ? 'active' : ''}" data-atab="gallery">🖼️ ${isAr ? 'إدارة الميديا والمعرض' : 'Media Gallery'} (${galleryItems.length})</button>
+      ` : ''}
     </div>
 
     ${curAtab === 'overview' ? `
@@ -824,6 +877,104 @@ function adminView(curUser, users) {
         </div>
       </div>
     ` : ''}
+
+    ${curAtab === 'gallery' && isSuperAdmin ? `
+      <div class="admin-card">
+        <div class="admin-card-head" style="gap:12px;flex-wrap:wrap">
+          <div>
+            <h3>🖼️ ${isAr ? 'إدارة ميديا ومعرض الأسرة (خاص بالمشرف العام)' : 'Media & Gallery Management (Super Admin)'}</h3>
+            <p style="color:var(--c2);font-size:.85rem;margin:2px 0 0">
+              ${isAr ? 'أضف صور وفيديوهات جديدة لتظهر في معرض الموقع وبوابة الأعضاء، أو احذف ما تريده من المعرض.' : 'Add new photos and videos to the live gallery or delete existing ones.'}
+            </p>
+          </div>
+          <button type="button" class="btn sm ghost" id="btn-sync-gallery-now" style="font-size:.82rem;padding:6px 14px;border-color:var(--g);color:var(--g)">
+            🔄 ${isAr ? 'تحديث المعرض' : 'Refresh Gallery'}
+          </button>
+        </div>
+
+        <!-- Add Media Form -->
+        <form id="admin-add-gallery-form" class="form" style="margin-top:20px;background:var(--bei);padding:18px;border-radius:14px;border:1px solid rgba(242,168,29,.2)">
+          <h4 style="margin:0 0 12px;color:var(--c1)">➕ ${isAr ? 'إضافة وسائط جديدة للمعرض' : 'Add New Media to Gallery'}</h4>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:14px">
+            <div>
+              <label style="display:block;font-size:.85rem;font-weight:700;margin-bottom:6px">${isAr ? 'نوع الوسائط' : 'Media Type'}</label>
+              <select id="gallery-media-type" class="form-input" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--bdr)">
+                <option value="IMAGE">📷 ${isAr ? 'صورة (رفع من الجهاز)' : 'Image (Upload from Device)'}</option>
+                <option value="VIDEO">🎥 ${isAr ? 'فيديو (رابط يوتيوب أو مباشر)' : 'Video (YouTube or Direct Link)'}</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:.85rem;font-weight:700;margin-bottom:6px">${isAr ? 'عنوان أو وصف مختصر (اختياري)' : 'Title / Caption (Optional)'}</label>
+              <input type="text" id="gallery-media-title" class="form-input" placeholder="${isAr ? 'مثال: افتتاح ملتقى الأسرة 2026' : 'e.g. Annual Family Conference 2026'}" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--bdr)">
+            </div>
+          </div>
+
+          <!-- Photo Upload Section -->
+          <div id="gallery-file-wrap" style="margin-top:14px">
+            <label style="display:block;font-size:.85rem;font-weight:700;margin-bottom:6px">${isAr ? 'اختر صورة من جهازك' : 'Choose Image File'}</label>
+            <input type="file" id="gallery-file-input" accept="image/*" class="form-input" style="width:100%;padding:8px;border-radius:8px;border:1px dashed var(--g)">
+            <p style="font-size:.78rem;color:var(--c2);margin:4px 0 0">${isAr ? 'يتم ضغط وتصغير الصورة تلقائياً لسرعة التحميل وحفظها سحابياً.' : 'Images are automatically optimized and stored in the cloud.'}</p>
+            <div id="gallery-preview-container" style="display:none;margin-top:10px;text-align:center">
+              <img id="gallery-preview-img" src="" alt="Preview" style="max-height:180px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.15);border:2px solid var(--g)">
+            </div>
+          </div>
+
+          <!-- Video URL Section -->
+          <div id="gallery-video-wrap" style="display:none;margin-top:14px">
+            <label style="display:block;font-size:.85rem;font-weight:700;margin-bottom:6px">${isAr ? 'رابط فيديو يوتيوب أو رابط مباشر' : 'YouTube or Video URL'}</label>
+            <input type="url" id="gallery-video-url" class="form-input" placeholder="https://www.youtube.com/watch?v=... أو https://youtu.be/..." style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--bdr)">
+            <p style="font-size:.78rem;color:var(--c2);margin:4px 0 0">${isAr ? 'يدعم روابط يوتيوب العادية، الشورتس (Shorts)، والروابط المباشرة.' : 'Supports standard YouTube links, Shorts, and direct MP4 URLs.'}</p>
+          </div>
+
+          <div style="margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <button type="submit" id="gallery-submit-btn" class="btn" style="padding:10px 24px">
+              🚀 ${isAr ? 'إضافة إلى المعرض السحابي' : 'Add to Cloud Gallery'}
+            </button>
+            <span id="gallery-form-msg" style="font-size:.88rem;font-weight:700"></span>
+          </div>
+        </form>
+
+        <!-- Current Gallery Items -->
+        <h4 style="margin:28px 0 14px;color:var(--c1)">📂 ${isAr ? 'العناصر الحالية في المعرض' : 'Current Gallery Items'} (${galleryItems.length})</h4>
+        ${galleryItems.length === 0 ? `
+          <div style="text-align:center;padding:36px 20px;color:var(--c2);background:var(--bei);border-radius:14px">
+            <div style="font-size:2rem;margin-bottom:8px">🖼️</div>
+            <b>${isAr ? 'المعرض فارغ حالياً' : 'The gallery is currently empty'}</b>
+          </div>
+        ` : `
+          <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));gap:16px">
+            ${galleryItems.map(item => `
+              <div style="background:var(--card);border:1px solid var(--bdr);border-radius:14px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.06);display:flex;flex-direction:column">
+                <div style="position:relative;aspect-ratio:16/10;background:#000;overflow:hidden">
+                  ${item.type === 'VIDEO' ? `
+                    ${item.url.endsWith('.mp4') || item.url.endsWith('.webm') ? `
+                      <video src="${item.url}" controls style="width:100%;height:100%;object-fit:cover"></video>
+                    ` : `
+                      <iframe src="${getVideoEmbedUrl(item.url)}" title="${item.title || 'Video'}" allowfullscreen style="width:100%;height:100%;border:none"></iframe>
+                    `}
+                    <span style="position:absolute;top:8px;left:8px;background:rgba(200,16,46,.9);color:#fff;padding:2px 8px;border-radius:6px;font-size:.72rem;font-weight:700">🎥 فيديو</span>
+                  ` : `
+                    <img src="${item.url}" alt="${item.title || 'Gallery Image'}" style="width:100%;height:100%;object-fit:cover" loading="lazy" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
+                    <span style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.65);color:#fff;padding:2px 8px;border-radius:6px;font-size:.72rem;font-weight:700">📷 صورة</span>
+                  `}
+                </div>
+                <div style="padding:12px;flex:1;display:flex;flex-direction:column;justify-content:space-between">
+                  <div>
+                    <h5 style="margin:0 0 6px;font-size:.9rem;line-height:1.4">${item.title || (isAr ? 'بدون عنوان' : 'Untitled')}</h5>
+                    <div style="font-size:.75rem;color:var(--c2)">${item.createdAt || ''}</div>
+                  </div>
+                  <div style="margin-top:12px;display:flex;justify-content:flex-end">
+                    <button type="button" class="btn sm ghost" data-delete-gallery-item="${item.id || item.url}" data-item-url="${item.url}" style="padding:4px 10px;font-size:.78rem;color:var(--red);border-color:var(--red)" title="${isAr ? 'حذف هذا العنصر من المعرض وقاعدة البيانات' : 'Delete item permanently'}">
+                      🗑️ ${isAr ? 'حذف من المعرض' : 'Delete'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+    ` : ''}
   </div>`;
 }
 
@@ -1012,8 +1163,8 @@ function studentView(curUser) {
         <a href="/#gallery" data-link class="btn ghost sm">${isAr ? 'المعرض الكامل' : 'Full Gallery'}</a>
       </div>
       <div class="dash-gal-grid">
-        ${C.gallery.slice(0, 8).map((g, i) => `
-          <img src="${g}" alt="Gallery ${i + 1}" class="dash-gal-thumb" data-g="${i}" loading="lazy">
+        ${getGalleryItems().filter(x => x.type !== 'VIDEO').slice(0, 8).map((g, i) => `
+          <img src="${g.url || g}" alt="${g.title || 'Gallery ' + (i + 1)}" class="dash-gal-thumb" data-g="${i}" loading="lazy" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
         `).join('')}
       </div>
     </div>
@@ -1702,6 +1853,66 @@ app.addEventListener("click", async e => {
     return;
   }
 
+  const delGalleryItem = e.target.closest("[data-delete-gallery-item]");
+  if (delGalleryItem) {
+    const id = delGalleryItem.dataset.deleteGalleryItem;
+    const itemUrl = delGalleryItem.dataset.itemUrl;
+    const isAr = lang === "ar";
+    const curUserId = localStorage.getItem("cf_user_id");
+    const curUser = getStore("cf_cur_user", null) || getUsers().find(u => u.id === curUserId);
+    if (!curUser || (!curUser.isSuperAdmin && curUser.role !== 'SUPER_ADMIN')) {
+      alert(isAr ? "عذراً، صلاحية حذف عناصر المعرض مقتصرة حصرياً على المشرف العام (محمد أشرف)." : "Unauthorized: Super Admin only.");
+      return;
+    }
+    if (!confirm(isAr ? "هل أنت متأكد من رغبتك في حذف هذا العنصر نهائياً من المعرض وقاعدة البيانات؟" : "Are you sure you want to permanently delete this item from the gallery and database?")) {
+      return;
+    }
+    delGalleryItem.disabled = true;
+    delGalleryItem.textContent = isAr ? 'جاري الحذف...' : 'Deleting...';
+    try {
+      const res = await fetch('/api/gallery', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          url: itemUrl,
+          requesterId: curUser.id,
+          requesterNid: curUser.nid
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        let gal = getGalleryItems().filter(x => x.id !== id && x.url !== itemUrl && x.url !== id);
+        saveGalleryItems(gal);
+        render("keep");
+      } else {
+        alert(data.error || (isAr ? "فشل حذف العنصر." : "Failed to delete item."));
+        delGalleryItem.disabled = false;
+        delGalleryItem.textContent = isAr ? 'حذف من المعرض' : 'Delete';
+      }
+    } catch (e) {
+      alert(isAr ? "حدث خطأ في الاتصال بالخادم." : "Connection failed.");
+      delGalleryItem.disabled = false;
+      delGalleryItem.textContent = isAr ? 'حذف من المعرض' : 'Delete';
+    }
+    return;
+  }
+
+  if (e.target.closest("#btn-sync-gallery-now")) {
+    const btn = e.target.closest("#btn-sync-gallery-now");
+    const isAr = lang === "ar";
+    btn.disabled = true;
+    btn.textContent = isAr ? 'جاري التحديث...' : 'Syncing...';
+    await syncGalleryWithCloud();
+    btn.disabled = false;
+    btn.textContent = isAr ? '✓ تم التحديث' : '✓ Synced';
+    render("keep");
+    setTimeout(() => {
+      if (btn) btn.textContent = isAr ? '🔄 تحديث المعرض' : 'Refresh Gallery';
+    }, 2000);
+    return;
+  }
+
   const evalStd = e.target.closest("[data-eval-std]");
   if (evalStd) {
     selectedEvalStudentId = evalStd.dataset.evalStd;
@@ -1937,6 +2148,32 @@ app.addEventListener("change", e => {
         const box = $("#edit-photo-preview-box");
         if (box) box.innerHTML = `<img src="${editPhotoBase64}" alt="Preview" style="width:100%;height:100%;object-fit:cover">`;
       });
+    }
+  }
+
+  if (e.target.id === "gallery-media-type") {
+    const val = e.target.value;
+    const fileWrap = $("#gallery-file-wrap");
+    const vidWrap = $("#gallery-video-wrap");
+    if (fileWrap && vidWrap) {
+      fileWrap.style.display = val === "IMAGE" ? "block" : "none";
+      vidWrap.style.display = val === "VIDEO" ? "block" : "none";
+    }
+  }
+
+  if (e.target.id === "gallery-file-input") {
+    const file = e.target.files && e.target.files[0];
+    const prevCont = $("#gallery-preview-container");
+    const prevImg = $("#gallery-preview-img");
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        if (prevImg) prevImg.src = ev.target.result;
+        if (prevCont) prevCont.style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    } else {
+      if (prevCont) prevCont.style.display = "none";
     }
   }
 });
@@ -2296,6 +2533,149 @@ app.addEventListener("submit", async e => {
     }, 400);
     return;
   }
+
+  // 6. Admin Add Gallery Media Form
+  const galForm = e.target.closest("#admin-add-gallery-form");
+  if (galForm) {
+    e.preventDefault();
+    const isAr = lang === "ar";
+    const msgEl = $("#gallery-form-msg");
+    const submitBtn = $("#gallery-submit-btn");
+    const mediaType = ($("#gallery-media-type") || {}).value || "IMAGE";
+    const title = (($("#gallery-media-title") || {}).value || "").trim();
+
+    const curUserId = localStorage.getItem("cf_user_id");
+    const curUser = getStore("cf_cur_user", null) || getUsers().find(u => u.id === curUserId);
+    if (!curUser || (!curUser.isSuperAdmin && curUser.role !== 'SUPER_ADMIN')) {
+      if (msgEl) {
+        msgEl.textContent = isAr ? '⚠️ غير مصرح: هذه الميزة للمشرف العام فقط.' : '⚠️ Unauthorized: Super Admin only.';
+        msgEl.style.color = 'var(--red)';
+      }
+      return;
+    }
+
+    if (mediaType === "IMAGE") {
+      const fileInput = $("#gallery-file-input");
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      if (!file) {
+        if (msgEl) {
+          msgEl.textContent = isAr ? '⚠️ برجاء اختيار ملف صورة أولاً.' : '⚠️ Please select an image file first.';
+          msgEl.style.color = 'var(--red)';
+        }
+        return;
+      }
+
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isAr ? '⏳ جاري الضغط والرفع للسحابة...' : '⏳ Uploading...'; }
+      if (msgEl) msgEl.textContent = '';
+
+      compressAndResizeImage(file, 1200, async (base64) => {
+        try {
+          const res = await fetch('/api/gallery', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              url: base64,
+              type: 'IMAGE',
+              title: title,
+              requesterId: curUser.id,
+              requesterNid: curUser.nid
+            })
+          });
+          const data = await res.json();
+          if (data.success) {
+            const currentGal = getGalleryItems();
+            const newItem = data.item ? {
+              id: data.item.id,
+              url: data.item.url,
+              type: data.item.type || 'IMAGE',
+              title: data.item.title || title,
+              createdAt: data.item.created_at ? new Date(data.item.created_at).toISOString().slice(0, 10) : ''
+            } : {
+              id: 'gal-' + Date.now(),
+              url: base64,
+              type: 'IMAGE',
+              title: title,
+              createdAt: new Date().toISOString().slice(0, 10)
+            };
+            saveGalleryItems([newItem, ...currentGal.filter(x => x.id !== newItem.id)]);
+            render('keep');
+          } else {
+            if (msgEl) {
+              msgEl.textContent = data.error || (isAr ? '❌ حدث خطأ أثناء الرفع.' : '❌ Upload failed.');
+              msgEl.style.color = 'var(--red)';
+            }
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? '🚀 إضافة إلى المعرض السحابي' : 'Add to Cloud Gallery'; }
+          }
+        } catch (err) {
+          if (msgEl) {
+            msgEl.textContent = isAr ? '❌ تعذر الاتصال بالخادم.' : '❌ Server error.';
+            msgEl.style.color = 'var(--red)';
+          }
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? '🚀 إضافة إلى المعرض السحابي' : 'Add to Cloud Gallery'; }
+        }
+      });
+    } else {
+      // VIDEO
+      const vidInput = $("#gallery-video-url");
+      const videoUrl = vidInput ? vidInput.value.trim() : '';
+      if (!videoUrl) {
+        if (msgEl) {
+          msgEl.textContent = isAr ? '⚠️ برجاء كتابة رابط الفيديو.' : '⚠️ Please enter video URL.';
+          msgEl.style.color = 'var(--red)';
+        }
+        return;
+      }
+
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isAr ? '⏳ جاري الحفظ في السحابة...' : '⏳ Saving...'; }
+      if (msgEl) msgEl.textContent = '';
+
+      try {
+        const res = await fetch('/api/gallery', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: videoUrl,
+            type: 'VIDEO',
+            title: title,
+            requesterId: curUser.id,
+            requesterNid: curUser.nid
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          const currentGal = getGalleryItems();
+          const newItem = data.item ? {
+            id: data.item.id,
+            url: data.item.url,
+            type: data.item.type || 'VIDEO',
+            title: data.item.title || title,
+            createdAt: data.item.created_at ? new Date(data.item.created_at).toISOString().slice(0, 10) : ''
+          } : {
+            id: 'gal-' + Date.now(),
+            url: videoUrl,
+            type: 'VIDEO',
+            title: title,
+            createdAt: new Date().toISOString().slice(0, 10)
+          };
+          saveGalleryItems([newItem, ...currentGal.filter(x => x.id !== newItem.id)]);
+          render('keep');
+        } else {
+          if (msgEl) {
+            msgEl.textContent = data.error || (isAr ? '❌ حدث خطأ أثناء الحفظ.' : '❌ Save failed.');
+            msgEl.style.color = 'var(--red)';
+          }
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? '🚀 إضافة إلى المعرض السحابي' : 'Add to Cloud Gallery'; }
+        }
+      } catch (err) {
+        if (msgEl) {
+          msgEl.textContent = isAr ? '❌ تعذر الاتصال بالخادم.' : '❌ Server error.';
+          msgEl.style.color = 'var(--red)';
+        }
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? '🚀 إضافة إلى المعرض السحابي' : 'Add to Cloud Gallery'; }
+      }
+    }
+    return;
+  }
 });
 
 app.addEventListener("input", e => {
@@ -2378,6 +2758,25 @@ async function syncSuggestionsWithCloud() {
   } catch (err) {}
 }
 
+async function syncGalleryWithCloud() {
+  try {
+    const res = await fetch('/api/gallery?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.success && Array.isArray(data.items)) {
+      const local = getStore("cf_gallery", []);
+      const changed = JSON.stringify(data.items) !== JSON.stringify(local);
+      if (changed) {
+        setStore("cf_gallery", data.items);
+        const curPath = location.pathname;
+        if (curPath === '/' || curPath === '/admin' || curPath === '/portal') {
+          render('keep');
+        }
+      }
+    }
+  } catch (err) {}
+}
+
 async function syncWithCloud(forceRender) {
   try {
     const res = await fetch('/api/students?t=' + Date.now(), { cache: 'no-store' });
@@ -2405,6 +2804,7 @@ async function syncWithCloud(forceRender) {
   }
 
   syncSuggestionsWithCloud();
+  syncGalleryWithCloud();
 }
 
 statics(); render(); syncWithCloud();
