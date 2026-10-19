@@ -1,0 +1,2256 @@
+/* أسرة طلاب من أجل مصر — Client-side router + views. كل البيانات من config.js */
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const C = CONFIG, app = $("#app");
+const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+let lang = localStorage.getItem("lang") === "en" ? "en" : "ar";
+const t = o => (o && o[lang]) || "", S = k => STR[lang][k];
+const ph = s => /\[|\]/.test(s || "");           // نص Placeholder؟
+const USER = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4 0-8 2-8 5v3h16v-3c0-3-4-5-8-5z"/></svg>';
+const ICONS = { facebook: "M14 8V6c0-1 .5-1.5 1.5-1.5H17V1h-3c-3 0-4.5 2-4.5 4.5V8H7v3.5h2.5V23H14V11.5h3L17.5 8z", instagram: "M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3zm5 3a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm5.5-3.5a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4z", linkedin: "M4 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM2 9h4v12H2zm7 0h4v2c1-2 6-3 6 2v8h-4v-7c0-2-2-2-2 0v7H9z", tiktok: "M16 2h-3v13a3 3 0 1 1-3-3v-3a6 6 0 1 0 6 6V9c1 1 3 2 5 2V8c-3 0-5-3-5-6z" };
+
+/* ---------- Templates ---------- */
+const fixPath = s => (s && !s.startsWith("http") && !s.startsWith("/") ? "/" + s : s);
+const person = (p, title, cls = "") => `<figure class="person ${cls}"><div class="avslot"><img class="av" src="${fixPath(p.photo)}" alt="${p.name}" width="160" height="160" loading="lazy" data-fb='${USER}' data-fbc="av ph"></div><figcaption><b>${p.name}</b><small>${title}</small></figcaption></figure>`;
+const arrow = '<span class="arr" aria-hidden="true">→</span>';
+const list = a => a.map(x => `<li>${t(x)}</li>`).join("");
+
+function homeView() {
+  const A = C.about, L = C.leadership;
+  return `
+<section id="home" class="hero"><div class="wrap hero-in">
+  <div class="hero-tx"><h1><span>${S("h1a")}</span> <em>${S("h1b")}</em></h1>
+    <p class="sub">${S("sub")}</p><p class="slogan">${S("slogan")}</p>
+    <div class="row"><a href="/register" data-link class="btn">${S("join")}</a><a href="/#about" data-link class="btn ghost">${S("know")}</a></div></div>
+  <picture class="hero-logo"><source srcset="/assets/images/logo.webp" type="image/webp"><img src="/assets/images/logo.png" alt="الشعار الرسمي لأسرة طلاب من أجل مصر" width="420" height="415" fetchpriority="high"></picture>
+</div></section>
+
+<section id="about" class="sec"><div class="wrap"><h2 class="rv">${S("n_about")}</h2>
+  <p class="lead rv">${t(A.lead)}</p>
+  <div class="grid3">
+    <div class="card rv"><h3>${S("vis")}</h3><p>${t(A.vision)}</p></div>
+    <div class="card rv"><h3>${S("mis")}</h3><p>${t(A.mission)}</p></div>
+    <div class="card rv"><h3>${S("val")}</h3><ul class="vals">${list(A.values)}</ul></div>
+  </div>
+  <div class="counters">${C.counters.map(c => `<div class="rv"><b data-n="${c.n}" data-p="${c.plus ? "+" : ""}">${c.n}${c.plus ? "+" : ""}</b><span>${t(c)}</span></div>`).join("")}</div>
+</div></section>
+
+<section id="leaders" class="sec alt"><div class="wrap"><h2 class="rv">${S("n_lead")}</h2>
+  ${L.supervisor ? `<div class="org rv" style="justify-content:center;margin-bottom:18px">${person(L.supervisor, t(L.supervisor.title), "lg")}</div>` : ""}
+  <div class="org rv">${person(L.bigBrother, t(L.bigBrother.title), "lg")}<div class="line" aria-hidden="true"></div>${person(L.viceBigBrother, t(L.viceBigBrother.title), "lg")}</div>
+</div></section>
+
+<section id="events" class="sec"><div class="wrap"><h2 class="rv">${S("n_ev")}</h2><p class="subh rv">${S("ev_sub")}</p>
+  <div class="grid3">${C.events.map(e => `<article class="card ev rv"><div class="evimg"><img src="${e.img}" alt="${t(e.title)}" width="600" height="400" loading="lazy" data-fb="${e.icon}" data-fbc="fbimg"></div><div class="evb"><small>${t(e.date)}</small><h3>${t(e.title)}</h3><p>${t(e.desc)}</p></div></article>`).join("")}</div>
+</div></section>
+
+<section id="gallery" class="sec alt"><div class="wrap"><h2 class="rv">${S("n_gal")}</h2><p class="subh rv">${S("gal_sub")}</p>
+  <div class="gal">${C.gallery.map((g, i) => `<button type="button" class="gi rv" data-g="${i}" aria-label="${S("gimg")} ${i + 1}"><img src="${g}" alt="${S("gimg")} ${i + 1}" width="400" height="300" loading="lazy" data-fb="🖼" data-fbc="fbimg"></button>`).join("")}</div>
+</div></section>
+
+<section id="join" class="sec dark"><div class="wrap narrow cta"><h2 class="rv">${S("join_t")}</h2><p class="rv">${S("join_d")}</p>
+  <ol class="steps">${STR[lang].s.map(x => `<li>${x}</li>`).join("")}</ol>
+  <a href="/register" data-link class="btn big">${S("join")}</a>
+</div></section>
+
+<section id="contact" class="sec"><div class="wrap narrow">
+  <h2 class="rv">${S("sug_t")}</h2><p class="subh rv">${S("sug_sub")}</p>
+  <form class="form rv" id="cform" novalidate>
+    <label>${S("f_name")}<input name="name" autocomplete="name" required></label>
+    <label>${S("f_email")}<input name="email" type="email" autocomplete="email" required></label>
+    <label>${S("f_act")}<input name="activity" required></label>
+    <label>${S("f_aud")}<input name="audience"></label>
+    <label>${S("f_msg")}<textarea name="message" rows="4" required></textarea></label>
+    <button class="btn" type="submit">${S("send")}</button><p class="msg" role="status" aria-live="polite"></p>
+  </form>
+</div></section>`;
+}
+
+function committeesView() {
+  return `<section class="sec pg"><div class="wrap"><h1 class="h2 rv">${S("n_com")}</h1><p class="subh rv">${S("com_sub")}</p>
+  <div class="cgrid">${C.committeeOrder.map((k, i) => { const c = C.committees[k]; return `<a class="ccard rv" style="--d:${i * 70}ms" href="/committees/${k}" data-link>
+    <span class="cico" aria-hidden="true">${c.icon}</span><span class="ccode">${c.code}</span><span class="car">${t(c)}</span><span class="cen">${lang === "ar" ? c.en : c.ar}</span>
+    <span class="cint">${t(c.intro)}</span><span class="ccta">${S("view_com")} ${arrow}</span></a>`; }).join("")}</div></div></section>`;
+}
+
+function committeeView(k) {
+  const c = C.committees[k], H = "Head";
+  const soc = Object.entries(c.links || {}).filter(([, u]) => u).map(([n, u]) => `<a class="btn ghost" href="${u}" target="_blank" rel="noopener noreferrer"><span style="text-transform:capitalize">${n}</span></a>`).join("");
+  return `<article class="cd">
+  <section class="cdhero"><div class="wrap"><a href="/committees" data-link class="back">${arrow} ${S("back")}</a>
+    <span class="cico big" aria-hidden="true">${c.icon}</span><h1>${c.code} <small>${t(c)}</small></h1><p class="en">${lang === "ar" ? c.en : c.ar}</p><p class="intro">${t(c.desc)}</p></div></section>
+  <div class="wrap cdbody">
+    <section class="card rv"><h2>${S("role")}</h2><p>${t(c.role)}</p></section>
+    <div class="two"><section class="card rv"><h2>${S("resp")}</h2><ul class="tick">${list(c.tasks)}</ul></section>
+    <section class="card rv"><h2>${S("gain")}</h2><ul class="tick">${list(c.gains)}</ul></section></div>
+    <section class="card rv"><h2>${S("lead")}</h2><div class="heads" dir="ltr">${person(c.head, c.head && c.head.title ? t(c.head.title) : H, "lg")}${(c.vices || []).map(v => person(v, v.title ? t(v.title) : "Vice Head", "lg")).join("")}</div></section>
+    ${soc ? `<section class="card rv"><h2>${S("soc")}</h2><div class="row">${soc}</div></section>` : ""}
+    <a href="/committees" data-link class="btn back2">${arrow} ${S("back")}</a>
+  </div></article>`;
+}
+const notFound = () => `<section class="sec pg"><div class="wrap narrow cta"><h1 class="h2">404</h1><h2>${S("nf_t")}</h2><p>${S("nf_d")}</p><a href="/" data-link class="btn">${S("home")}</a></div></section>`;
+
+/* ---------- Central Family Portal & Admin ---------- */
+let curAuthMode = "login", curAtab = "overview", studentSearchQuery = "", evalSearchQuery = "", selectedEvalStudentId = "", openedEventArchiveId = "", regPhotoBase64 = "", isEditingProfile = false, editPhotoBase64 = "";
+const getStore = (k, def) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } };
+const setStore = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+const INIT_EVENTS_ARCHIVE = [
+  {
+    id: "ev-init-1",
+    title: "ملتقى استقبال الطلاب الجدد والتعريف باللجان",
+    date: "10/10/2026",
+    time: "11:00 ص",
+    totalAttendees: 4,
+    attendees: [
+      { studentId: "std-1", studentName: "أحمد محمود سالم", nid: "30501121400111", college: "حاسبات", year: "الفرقة الأولى", committee: "oc", phone: "01012345678", photo: "/assets/images/logo.png", time: "11:05 ص" },
+      { studentId: "std-2", studentName: "سارة إبراهيم حسن", nid: "30502121400222", college: "هندسة", year: "الفرقة الثانية", committee: "hr", phone: "01123456789", photo: "/assets/images/logo.png", time: "11:12 ص" },
+      { studentId: "std-3", studentName: "كريم عبد الرحمن علي", nid: "30503121400333", college: "فنون", year: "الفرقة الأولى", committee: "media", phone: "01234567890", photo: "/assets/images/logo.png", time: "11:20 ص" },
+      { studentId: "std-4", studentName: "نورهان طارق يوسف", nid: "30504121400444", college: "بيزنس", year: "الفرقة الثالثة", committee: "pr", phone: "01545678901", photo: "/assets/images/logo.png", time: "11:35 ص" }
+    ]
+  },
+  {
+    id: "ev-init-2",
+    title: "إفطار رمضان الجماعي 2026 — جامعة حلوان الأهلية",
+    date: "25/03/2026",
+    time: "05:30 م",
+    totalAttendees: 3,
+    attendees: [
+      { studentId: "std-5", studentName: "يوسف خالد مصطفى", nid: "30405121400555", college: "طب بشري", year: "الفرقة الثانية", committee: "oc", phone: "01098765432", photo: "/assets/images/logo.png", time: "05:45 م" },
+      { studentId: "std-6", studentName: "منة الله شريف", nid: "30406121400666", college: "علاج طبيعي", year: "الفرقة الأولى", committee: "hr", phone: "01187654321", photo: "/assets/images/logo.png", time: "05:52 م" },
+      { studentId: "std-7", studentName: "عمر هاني زكي", nid: "30407121400777", college: "طب أسنان", year: "الفرقة الثانية", committee: "pr", phone: "01276543210", photo: "/assets/images/logo.png", time: "06:05 م" }
+    ]
+  }
+];
+
+const DEFAULT_USERS = [];
+
+function getUsers() {
+  const users = getStore("cf_users_v4", null);
+  if (!users || !Array.isArray(users)) {
+    return [];
+  }
+  return users;
+}
+function saveUsers(u) { setStore("cf_users_v4", u); }
+
+const COLLEGES = [
+  "هندسة",
+  "حاسبات",
+  "فنون",
+  "بيزنس",
+  "علوم",
+  "علوم صحية",
+  "طب أسنان",
+  "طب بشري",
+  "علاج طبيعي",
+  "لغات وترجمة",
+  "حقوق"
+];
+
+const COMMITTEES_MAP = {
+  oc: "التنظيم (OC)",
+  hr: "الموارد البشرية (HR)",
+  media: "الميديا (Media)",
+  pr: "العلاقات العامة (PR)"
+};
+
+const YEARS = ["الفرقة الأولى", "الفرقة الثانية", "الفرقة الثالثة", "الفرقة الرابعة", "خريج"];
+
+function getComName(code) {
+  if (lang === "en") {
+    const enMap = {
+      oc: "Operations Committee (OC)",
+      hr: "Human Resources (HR)",
+      media: "Media Committee",
+      pr: "Public Relations (PR)"
+    };
+    return enMap[code] || code;
+  }
+  return COMMITTEES_MAP[code] || code;
+}
+
+function getCollegeName(c) {
+  if (lang === "en") {
+    const enColleges = {
+      "هندسة": "Faculty of Engineering",
+      "حاسبات": "Faculty of Computers & AI",
+      "فنون": "Faculty of Applied Arts",
+      "بيزنس": "Faculty of Business",
+      "علوم": "Faculty of Science",
+      "علوم صحية": "Applied Health Sciences",
+      "طب أسنان": "Faculty of Dentistry",
+      "طب بشري": "Faculty of Medicine",
+      "علاج طبيعي": "Faculty of Physical Therapy",
+      "لغات وترجمة": "Languages & Translation",
+      "حقوق": "Faculty of Law"
+    };
+    return enColleges[c] || c;
+  }
+  return c;
+}
+
+function getYearName(y) {
+  if (lang === "en") {
+    const enYears = {
+      "الفرقة الأولى": "First Year",
+      "الفرقة الثانية": "Second Year",
+      "الفرقة الثالثة": "Third Year",
+      "الفرقة الرابعة": "Fourth Year",
+      "خريج": "Graduate"
+    };
+    return enYears[y] || y;
+  }
+  return y;
+}
+
+const INIT_SUGS = [
+  { id: "1", name: "مروان سمير", email: "marwan@example.com", act: "ورشة عمل الذكاء الاصطناعي", aud: "طلاب الحاسبات والهندسة", msg: "تنظيم هاكاثون مصغر لتطبيقات الذكاء الاصطناعي وخدمة المجتمع الجامعي.", date: "2026-10-12", done: false },
+  { id: "2", name: "مريم عادل", email: "mariam@example.com", act: "يوم رياضي وبطولة كرة قدم", aud: "جميع كليات الجامعة", msg: "دوري كرة قدم وسلة بين الكليات المختلفة في الجامعة لتعزيز روح التعاون.", date: "2026-10-10", done: true }
+];
+
+function sanitize(str) {
+  if (typeof str !== "string") return str;
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+let loginAttempts = 0;
+let lockoutTimer = null;
+let lockoutSecondsRemaining = 0;
+
+function maskNid(id) { return id && id.length >= 10 ? id.slice(0, 4) + "******" + id.slice(-4) : id; }
+function getScoreBadge(s) {
+  if (s >= 8) return `<span class="ebadge high">${s} / 10 (ممتاز)</span>`;
+  if (s >= 5) return `<span class="ebadge med">${s} / 10 (جيد)</span>`;
+  return `<span class="ebadge low">${s} / 10 (بحاجة لتطوير)</span>`;
+}
+
+function portalView() {
+  const isAr = lang === "ar";
+  const role = localStorage.getItem("cf_role");
+  const userId = localStorage.getItem("cf_user_id");
+  const users = getUsers();
+  const curUser = users.find(u => u.id === userId) || getStore("cf_cur_user", null);
+
+  if ((role === "ADMIN" || role === "SUPER_ADMIN") && curUser) return adminView(curUser, users);
+  if (role === "STUDENT" && curUser) return studentView(curUser);
+
+  const isReg = curAuthMode === "register";
+
+  return `<section class="portal-sec"><div class="wrap">
+    <div class="portal-card" style="${isReg ? 'max-width:640px' : 'max-width:520px'}">
+      <div class="portal-head">
+        <div class="pico">${isReg ? '📝' : '🔐'}</div>
+        <h1>${isReg ? (isAr ? 'إنشاء حساب جديد بالأسرة' : 'Create Family Account') : S("portal_t")}</h1>
+        <p>${isAr ? 'أسرة طلاب من أجل مصر — جامعة حلوان الأهلية' : 'Students For Egypt — Helwan National University'}</p>
+      </div>
+
+      <div class="portal-tabs">
+        <button type="button" class="ptab-btn ${!isReg ? 'active' : ''}" id="btn-show-login">🔐 ${isAr ? 'تسجيل الدخول' : 'Sign In'}</button>
+        <button type="button" class="ptab-btn ${isReg ? 'active' : ''}" id="btn-show-register">📝 ${isAr ? 'إنشاء حساب جديد' : 'Register Account'}</button>
+      </div>
+
+      ${isReg ? registerFormHtml() : loginFormHtml()}
+    </div>
+  </div></section>`;
+}
+
+function loginFormHtml() {
+  const isAr = lang === "ar";
+  return `
+    <div class="portal-note">
+      <b>${isAr ? 'تسجيل الدخول الموحد للطلاب والإدارة:' : 'Unified Login for Students & Admins:'}</b><br>
+      ${isAr ? 'أدخل رقمك القومي (14 رقماً) وكلمة المرور للدخول لحسابك مباشرة؛ النظام يتعرف على رتبتك وصلاحياتك تلقائياً دون الحاجة لتحديدها.' : 'Enter your 14-digit National ID and password to access your account. The system automatically detects your role.'}
+    </div>
+
+    <form class="form" id="unified-login-form">
+      <label>${isAr ? 'الرقم القومي (14 رقماً)' : 'National ID (14 digits)'}
+        <input name="nid" pattern="[0-9]{14}" placeholder="${isAr ? 'أدخل الرقم القومي المكون من 14 رقماً...' : 'Enter your 14-digit National ID...'}" required autocomplete="username">
+      </label>
+      <label>${isAr ? 'كلمة المرور' : 'Password'}
+        <div class="pw-wrap">
+          <input name="pw" type="password" placeholder="${isAr ? 'أدخل كلمة المرور الخاصة بك...' : 'Enter your password...'}" required autocomplete="current-password">
+          <button type="button" class="pw-toggle-btn" tabindex="-1" aria-label="Toggle password visibility">👁️</button>
+        </div>
+      </label>
+      <button class="btn big" type="submit" style="width:100%;margin-top:10px">${isAr ? 'تسجيل الدخول' : 'Sign In'}</button>
+      <p class="msg" id="login-msg" role="status" aria-live="polite"></p>
+    </form>
+
+    <div style="text-align:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--bei);font-size:.95rem">
+      ${isAr ? 'ليس لديك حساب بعد؟' : "Don't have an account yet?"} 
+      <button type="button" class="btn ghost sm" id="btn-show-register-sub" style="margin-inline-start:8px;font-size:.85rem;padding:6px 14px">
+        ${isAr ? 'إنشاء حساب جديد والانضمام' : 'Register New Account'}
+      </button>
+    </div>
+  `;
+}
+
+function registerFormHtml() {
+  const isAr = lang === "ar";
+  return `
+    <div class="portal-note" style="border-color:var(--g)">
+      <b>${isAr ? 'انضم للأسرة وأنشئ حسابك الرسمي:' : 'Join the Family & Create Your Official Account:'}</b><br>
+      ${isAr ? 'يرجى استيفاء بياناتك بدقة. التسجيل متاح لطلاب الكليات المعتمدة، وسيتم فتح بوابة عضويتك وتفعيل ملفك فوراً.' : 'Please enter your details accurately. Available for approved faculties. Your membership portal will be activated immediately.'}
+    </div>
+
+    <form class="form" id="unified-register-form">
+      <label>${isAr ? 'الاسم بالكامل (ثلاثي أو رباعي)' : 'Full Name (3 or 4 names)'}
+        <input name="fullName" placeholder="${isAr ? 'مثال: أحمد محمد علي' : 'e.g. Ahmed Mohamed Ali'}" required>
+      </label>
+      <label>${isAr ? 'الرقم القومي (14 رقماً بالضبط)' : 'National ID (Exactly 14 digits)'}
+        <input name="nid" pattern="[0-9]{14}" placeholder="${isAr ? 'أدخل 14 رقماً باللغة الإنجليزية...' : 'Enter 14 digits...'}" required>
+      </label>
+
+      <div class="form-row">
+        <label>${isAr ? 'كلمة المرور (6 أحرف أو أكثر)' : 'Password (6+ characters)'}
+          <div class="pw-wrap">
+            <input name="pw" type="password" minlength="6" placeholder="${isAr ? 'اختر كلمة مرور قوية...' : 'Choose a strong password...'}" required>
+            <button type="button" class="pw-toggle-btn" tabindex="-1" aria-label="Toggle password visibility">👁️</button>
+          </div>
+        </label>
+        <label>${isAr ? 'تأكيد كلمة المرور' : 'Confirm Password'}
+          <div class="pw-wrap">
+            <input name="pwConfirm" type="password" minlength="6" placeholder="${isAr ? 'أعد كتابة كلمة المرور...' : 'Re-enter your password...'}" required>
+            <button type="button" class="pw-toggle-btn" tabindex="-1" aria-label="Toggle password visibility">👁️</button>
+          </div>
+        </label>
+      </div>
+
+      <div class="form-row">
+        <label>${isAr ? 'رقم الهاتف / الواتساب' : 'Phone / WhatsApp'}
+          <input name="phone" type="tel" placeholder="01XXXXXXXXX" required>
+        </label>
+        <label>${isAr ? 'البريد الإلكتروني (اختياري)' : 'Email (Optional)'}
+          <input name="email" type="email" placeholder="student@example.com">
+        </label>
+      </div>
+
+      <div class="form-row">
+        <label>${isAr ? 'الكلية' : 'Faculty'}
+          <select name="college" required>
+            <option value="">${isAr ? 'اختر كليتك...' : 'Select your faculty...'}</option>
+            ${COLLEGES.map(c => `<option value="${c}">${getCollegeName(c)}</option>`).join('')}
+          </select>
+        </label>
+        <label>${isAr ? 'الفرقة الدراسية' : 'Academic Year'}
+          <select name="year" required>
+            <option value="">${isAr ? 'اختر الفرقة...' : 'Select your year...'}</option>
+            ${YEARS.map(y => `<option value="${y}">${getYearName(y)}</option>`).join('')}
+          </select>
+        </label>
+      </div>
+
+      <label>${isAr ? 'اللجنة التي ترغب بالانضمام إليها' : 'Committee You Wish to Join'}
+        <select name="com" required>
+          <option value="">${isAr ? 'اختر لجنتك (إحدى اللجان الأربع)...' : 'Choose your committee (one of four)...'}</option>
+          ${Object.entries(COMMITTEES_MAP).map(([k, v]) => `<option value="${k}">${getComName(k)}</option>`).join('')}
+        </select>
+      </label>
+
+      <div class="photo-uploader">
+        <div class="photo-preview" id="photo-preview-box">👤</div>
+        <div>
+          <label style="cursor:pointer;font-weight:700;color:var(--c1);display:block;margin-bottom:4px">
+            ${isAr ? 'الصورة الشخصية (مطلوبة لملف العضوية)' : 'Profile Photo (Required)'}
+          </label>
+          <input type="file" id="photo-file-input" accept="image/*" style="font-size:.85rem;border:none;padding:0;min-height:unset">
+          <small style="color:var(--c2);display:block;margin-top:4px">
+            ${isAr ? 'ستظهر صورتك في بطاقة عضويتك وسجل الحضور.' : 'Your photo will be displayed on your membership card.'}
+          </small>
+        </div>
+      </div>
+
+      <button class="btn big" type="submit" style="width:100%;margin-top:14px">
+        ${isAr ? 'إنشاء الحساب والانضمام للأسرة' : 'Register & Join Family'}
+      </button>
+      <p class="msg" id="reg-msg" role="status" aria-live="polite"></p>
+    </form>
+
+    <div style="text-align:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--bei);font-size:.95rem">
+      ${isAr ? 'لديك حساب بالفعل؟' : 'Already have an account?'} 
+      <button type="button" class="btn ghost sm" id="btn-show-login-sub" style="margin-inline-start:8px;font-size:.85rem;padding:6px 14px">
+        ${isAr ? 'تسجيل الدخول' : 'Sign In'}
+      </button>
+    </div>
+  `;
+}
+
+function adminView(curUser, users) {
+  const isAr = lang === "ar";
+  const isSuperAdmin = curUser && (curUser.role === 'SUPER_ADMIN' || curUser.isSuperAdmin === true);
+  const sugs = getStore("cf_sugs", INIT_SUGS);
+  const activeQr = getStore("cf_active_qr", { active: false, title: "", image: "" });
+  const attendances = getStore("cf_attendance", []);
+  const eventsArchive = getStore("cf_events_archive", INIT_EVENTS_ARCHIVE);
+  const evaluableMembers = users.filter(u => u.role !== "ADMIN" && u.role !== "SUPER_ADMIN");
+  const filteredStudents = users.filter(s => !studentSearchQuery || s.name.toLowerCase().includes(studentSearchQuery.toLowerCase()) || s.college.includes(studentSearchQuery) || (s.com && s.com.includes(studentSearchQuery)));
+  const filteredEvalMembers = evaluableMembers.filter(s => !evalSearchQuery || s.name.toLowerCase().includes(evalSearchQuery.toLowerCase()) || (s.nid && s.nid.includes(evalSearchQuery)) || (s.college && s.college.includes(evalSearchQuery)));
+  const selectedMember = evaluableMembers.find(s => s.id === selectedEvalStudentId) || filteredEvalMembers[0] || evaluableMembers[0];
+  const activeEventAttendees = attendances.filter(a => a.event === activeQr.title);
+
+  return `<div class="admin-wrap">
+    <div class="admin-bar">
+      <div class="admin-bar-user">
+        <div class="admin-av">
+          <img src="${curUser.photo}" alt="${curUser.name}" onerror="this.onerror=null;this.parentElement.textContent='👑'">
+        </div>
+        <div>
+          <h2>${curUser.name}</h2>
+          <p>${curUser.title} — ${getCollegeName(curUser.college)}</p>
+        </div>
+      </div>
+      <div class="admin-bar-actions">
+        <button type="button" class="btn sm" id="logout-btn" style="height:38px;padding:0 18px;font-size:.85rem;background:#C8102E;color:#fff;border-color:transparent;font-weight:700">🚪 ${isAr ? 'تسجيل الخروج' : 'Logout'}</button>
+      </div>
+    </div>
+
+    <div class="admin-subnav">
+      <button type="button" class="asub-btn ${curAtab === 'overview' ? 'active' : ''}" data-atab="overview">📊 ${isAr ? 'الإحصائيات العامة' : 'General Stats'}</button>
+      <button type="button" class="asub-btn ${curAtab === 'students' ? 'active' : ''}" data-atab="students">👥 ${isAr ? 'إدارة الأعضاء والطلاب' : 'Members Directory'} (${users.length})</button>
+      <button type="button" class="asub-btn ${curAtab === 'evals' ? 'active' : ''}" data-atab="evals">⭐ ${isAr ? 'نظام تقييم الأداء' : 'Evaluations'} (${evaluableMembers.length})</button>
+      <button type="button" class="asub-btn ${curAtab === 'qr' ? 'active' : ''}" data-atab="qr">📱 ${isAr ? 'نظام الـ QR والحضور' : 'QR Attendance'} ${activeQr.active ? '🟢' : ''}</button>
+      <button type="button" class="asub-btn ${curAtab === 'sugs' ? 'active' : ''}" data-atab="sugs">💡 ${isAr ? 'صندوق الاقتراحات' : 'Suggestions'} (${sugs.filter(x => !x.done).length})</button>
+    </div>
+
+    ${curAtab === 'overview' ? `
+      <div class="dash-stats">
+        <div class="dstat"><div class="dstat-val">${users.length}</div><div class="dstat-lbl">${isAr ? 'الأعضاء والمسجلين في النظام' : 'Registered Members'}</div></div>
+        <div class="dstat"><div class="dstat-val">4</div><div class="dstat-lbl">${isAr ? 'اللجان المركزية النشطة (OC, HR, Media, PR)' : 'Active Committees (OC, HR, Media, PR)'}</div></div>
+        <div class="dstat"><div class="dstat-val">${attendances.length}</div><div class="dstat-lbl">${isAr ? 'تسجيلات حضور بالـ QR' : 'QR Attendance Records'}</div></div>
+        <div class="dstat"><div class="dstat-val">${activeQr.active ? (isAr ? 'نشطة' : 'Active') : (isAr ? 'متوقفة' : 'Inactive')}</div><div class="dstat-lbl">${isAr ? 'حالة فعالية الـ QR الحالية' : 'Current QR Status'}</div></div>
+      </div>
+      <div class="admin-card">
+        <div class="admin-card-head"><h3>⚡ ${isAr ? 'لوحة الإدارة — أسرة طلاب من أجل مصر' : 'Admin Dashboard — Students For Egypt'}</h3></div>
+        <p style="color:var(--c2);line-height:1.8">
+          ${isAr 
+            ? `أهلاً بك يا <b>${curUser.name}</b> في لوحة الإدارة المركزية. يمكنك من هنا رفع صورة كود QR لتسجيل حضور الفعاليات وتفعيلها لتظهر لجميع الطلاب، وإيقافها بضغطة زر عند انتهاء الفعالية، ومتابعة تسجيلات حضور الطلاب، وتصدير التقارير وطباعتها، وإدارة الأعضاء وترقيتهم وتقييم أدائهم دورياً.`
+            : `Welcome <b>${curUser.name}</b> to the central admin panel. From here you can upload & activate event QR codes for all students, stop them when events conclude, track live attendance, print official reports, export member records, and manage evaluations.`}
+        </p>
+      </div>
+    ` : ''}
+
+    ${curAtab === 'students' ? `
+      <div class="admin-card">
+        <div class="admin-card-head">
+          <div>
+            <h3>${isAr ? 'قائمة الأعضاء والمسجلين' : 'Members Directory'} (${users.length})</h3>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+              <button type="button" class="btn sm" id="btn-sync-cloud-now" style="padding:6px 14px;font-size:.82rem;background:#22c55e;border-color:#22c55e;color:#fff">
+                🔄 ${isAr ? 'تحديث فوري من قاعدة البيانات' : 'Sync Live'}
+              </button>
+              <button type="button" class="btn sm" id="btn-export-students-csv" style="padding:6px 14px;font-size:.82rem">
+                📥 ${isAr ? 'تصدير كشف الأعضاء (Excel / CSV)' : 'Export Members (CSV)'}
+              </button>
+              <button type="button" class="btn sm ghost" id="btn-print-students" style="padding:6px 14px;font-size:.82rem">
+                🖨️ ${isAr ? 'طباعة كشف الأعضاء' : 'Print Directory'}
+              </button>
+            </div>
+          </div>
+          <input type="search" class="search-inp" id="student-search" placeholder="${isAr ? 'بحث بالاسم أو الكلية أو اللجنة...' : 'Search by name, faculty, committee...'}" value="${studentSearchQuery}">
+        </div>
+        <div class="tbl-wrap">
+          <table class="atbl">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>${isAr ? 'الصورة' : 'Photo'}</th>
+                <th>${isAr ? 'الاسم' : 'Name'}</th>
+                <th>${isAr ? 'الرقم القومي (محمي)' : 'National ID'}</th>
+                <th>${isAr ? 'الكلية' : 'Faculty'}</th>
+                <th>${isAr ? 'الفرقة' : 'Year'}</th>
+                <th>${isAr ? 'اللجنة' : 'Committee'}</th>
+                <th>${isAr ? 'الصلاحية' : 'Role'}</th>
+                <th>${isAr ? 'التقييم' : 'Score'}</th>
+                <th>${isAr ? 'إجراءات' : 'Actions'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredStudents.map((s, idx) => `
+                <tr>
+                  <td>${idx + 1}</td>
+                  <td>
+                    <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:1.5px solid var(--g);background:#fff">
+                      <img src="${s.photo || '/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" alt="">
+                    </div>
+                  </td>
+                  <td><b>${s.name}</b></td>
+                  <td><code>${maskNid(s.nid)}</code></td>
+                  <td>${getCollegeName(s.college)}</td>
+                  <td>${getYearName(s.year)}</td>
+                  <td><span class="sbadge" style="background:var(--bei);color:var(--c1)">${getComName(s.com)}</span></td>
+                  <td><span class="sbadge ${s.role === 'ADMIN' || s.role === 'SUPER_ADMIN' ? 'act' : 'pen'}">${s.role === 'SUPER_ADMIN' ? (isAr ? 'المشرف العام 👑' : 'Super Admin') : (s.role === 'ADMIN' ? (isAr ? 'مشرف / أدمن' : 'Admin') : (isAr ? 'عضو' : 'Member'))}</span></td>
+                  <td>${s.role === 'ADMIN' || s.role === 'SUPER_ADMIN' ? '—' : getScoreBadge(s.score || 0)}</td>
+                  <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                    ${s.role !== 'ADMIN' && s.role !== 'SUPER_ADMIN' ? `
+                      <button type="button" class="btn sm" data-eval-std="${s.id}" style="padding:4px 8px;font-size:.78rem">${isAr ? 'تقييم' : 'Evaluate'}</button>
+                    ` : ''}
+                    ${isSuperAdmin && s.id !== curUser.id && s.role !== 'SUPER_ADMIN' ? `
+                      <button type="button" class="btn sm ghost" data-toggle-admin="${s.id}" style="padding:4px 8px;font-size:.78rem;border-color:var(--g)">
+                        ${s.role === 'ADMIN' ? (isAr ? 'سحب الأدمن ⬇️' : 'Demote') : (isAr ? 'تعيين أدمن 👑' : 'Make Admin')}
+                      </button>
+                    ` : (s.id === curUser.id ? `<span style="font-size:.78rem;color:var(--g2);font-weight:700">${isAr ? 'حسابك الحالي' : 'Current User'}</span>` : '')}
+                    ${isSuperAdmin && s.role !== 'SUPER_ADMIN' && s.id !== curUser.id ? `
+                      <button type="button" class="btn sm ghost" data-delete-student="${s.id}" data-student-name="${s.name}" data-student-nid="${s.nid}" style="padding:4px 8px;font-size:.78rem;color:var(--red);border-color:var(--red)" title="${isAr ? 'حذف العضو نهائياً من قاعدة البيانات' : 'Delete Member Permanently'}">
+                        🗑️ ${isAr ? 'حذف' : 'Delete'}
+                      </button>
+                    ` : ''}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    ` : ''}
+
+    ${curAtab === 'evals' ? `
+      <div class="admin-card">
+        <div class="admin-card-head">
+          <div>
+            <h3>⭐ ${isAr ? 'نظام تقييم أداء الأعضاء والطلاب' : 'Member Performance Evaluation System'}</h3>
+            <p style="color:var(--c2);font-size:.85rem;margin:2px 0 0">
+              ${isAr ? 'التقييم متاح للأعضاء فقط (المشرفون والإدارة غير متاح تقييمهم حفاظاً على الصلاحيات).' : 'Evaluations are strictly for members. Admins are excluded.'}
+            </p>
+          </div>
+          <span class="sbadge act">${evaluableMembers.length} ${isAr ? 'عضو مؤهل للتقييم' : 'Evaluable Members'}</span>
+        </div>
+
+        <!-- Search Bar by Name or National ID -->
+        <div style="background:var(--bei);padding:14px 18px;border-radius:16px;margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:260px">
+            <label style="display:block;font-size:.85rem;font-weight:700;color:var(--c1);margin-bottom:4px">
+              🔍 ${isAr ? 'ابحث عن العضو بالاسم أو الرقم القومي (14 رقماً):' : 'Search Member by Name or National ID:'}
+            </label>
+            <input type="search" class="search-inp" id="eval-search-inp" placeholder="${isAr ? 'اكتب اسم العضو أو الرقم القومي...' : 'Type member name or National ID...'}" value="${evalSearchQuery}" style="width:100%;background:#fff;border-color:var(--g)">
+          </div>
+          ${evalSearchQuery ? `
+            <button type="button" class="btn sm ghost" id="btn-clear-eval-search" style="margin-top:18px;font-size:.8rem;padding:6px 14px">
+              ✕ ${isAr ? 'مسح البحث' : 'Clear'}
+            </button>
+          ` : ''}
+        </div>
+
+        ${selectedMember ? `
+          <!-- Active Evaluation Card -->
+          <div style="background:#fff;border:2px solid var(--g);border-radius:20px;padding:22px;box-shadow:var(--sh);margin-bottom:24px">
+            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;border-bottom:1.5px solid var(--bei);padding-bottom:16px;margin-bottom:18px">
+              <div class="admin-av" style="width:64px;height:64px;flex-shrink:0">
+                <img src="${selectedMember.photo || '/assets/images/logo.png'}" alt="${selectedMember.name}" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
+              </div>
+              <div style="flex:1;min-width:200px">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                  <h3 style="color:var(--c1);margin:0;font-size:1.25rem">${selectedMember.name}</h3>
+                  ${getScoreBadge(selectedMember.score !== undefined ? selectedMember.score : 0)}
+                </div>
+                <p style="color:var(--c2);font-size:.88rem;margin:4px 0 0">
+                  🆔 <code>${selectedMember.nid}</code> • 🏛️ ${getCollegeName(selectedMember.college)} — ${getYearName(selectedMember.year)} • 📌 ${getComName(selectedMember.com)}
+                </p>
+                ${selectedMember.phone ? `<p style="font-size:.82rem;color:var(--g2);font-weight:700;margin:2px 0 0" dir="ltr">📞 ${selectedMember.phone}</p>` : ''}
+              </div>
+            </div>
+
+            <form class="form" id="new-eval-form" style="max-width:680px">
+              <input type="hidden" name="studentId" value="${selectedMember.id}">
+              <div class="form-row">
+                <label>${isAr ? 'درجة التقييم الحالية (من 0 إلى 10)' : 'Evaluation Score (0 to 10)'}
+                  <input name="score" type="number" min="0" max="10" step="0.1" value="${selectedMember.score !== undefined ? selectedMember.score : 9.0}" required style="font-weight:800;font-size:1.15rem;color:var(--c1)">
+                </label>
+                <div style="display:flex;flex-direction:column;justify-content:center;font-size:.82rem;color:var(--c2);line-height:1.5;background:var(--bei);padding:10px 14px;border-radius:12px">
+                  <span>🟢 8.0 - 10: ممتاز (High Performer)</span>
+                  <span>🟡 5.0 - 7.9: جيد ومقبول (Good)</span>
+                  <span>🔴 0 - 4.9: بحاجة لتطوير ومتابعة (Needs Support)</span>
+                </div>
+              </div>
+
+              <label>${isAr ? 'ملاحظات الأداء وتوجيهات التطوير' : 'Performance Notes & Feedback'}
+                <textarea name="notes" rows="3" placeholder="${isAr ? 'مستوى الالتزام، التفاعل في المهام، وروح الفريق...' : 'Commitment level, task execution, team spirit...'}">${selectedMember.notes || ''}</textarea>
+              </label>
+
+              <button class="btn btn-success" type="submit" style="min-height:44px;padding:10px 28px;font-size:.92rem;justify-self:start">
+                💾 ${isAr ? `حفظ وتحديث تقييم (${selectedMember.name})` : 'Save Evaluation'}
+              </button>
+              <p class="msg" id="eval-msg" role="status" aria-live="polite"></p>
+            </form>
+          </div>
+        ` : `
+          <div style="padding:28px;text-align:center;color:var(--c2);background:var(--bei);border-radius:16px;margin-bottom:20px">
+            ${isAr ? 'لا يوجد أعضاء مطابقين للبحث الحالي.' : 'No members found matching your search.'}
+          </div>
+        `}
+
+        <!-- Members Grid with Photo Avatars -->
+        <div>
+          <h4 style="color:var(--c1);margin-bottom:12px;font-size:1.05rem">
+            👥 ${isAr ? 'اختر عضواً من القائمة للتقييم:' : 'Select Member from Directory:'} (${filteredEvalMembers.length})
+          </h4>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
+            ${filteredEvalMembers.map(s => `
+              <div class="eval-member-card" data-select-eval-std="${s.id}" style="display:flex;align-items:center;gap:12px;background:#fff;border:1.5px solid ${s.id === (selectedMember && selectedMember.id) ? 'var(--g)' : 'var(--bei)'};border-radius:14px;padding:12px;cursor:pointer;transition:.2s;box-shadow:${s.id === (selectedMember && selectedMember.id) ? '0 0 12px rgba(242,168,29,.35)' : 'none'}">
+                <div style="width:46px;height:46px;border-radius:50%;overflow:hidden;border:2px solid var(--g);background:#fff;flex-shrink:0">
+                  <img src="${s.photo || '/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" alt="${s.name}" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
+                </div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-weight:700;color:var(--c1);font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
+                  <div style="font-size:.78rem;color:var(--c2)"><code>${s.nid}</code></div>
+                  <div style="font-size:.78rem;color:var(--g2);font-weight:600">${getCollegeName(s.college)} • ${getComName(s.com)}</div>
+                </div>
+                <div>
+                  ${getScoreBadge(s.score !== undefined ? s.score : 0)}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    ` : ''}
+
+    ${curAtab === 'qr' ? `
+      <div class="admin-card">
+        <div class="admin-card-head">
+          <div>
+            <h3>📱 ${isAr ? 'نظام الحضور ورفع كود الـ QR' : 'QR Attendance System'}</h3>
+            <p style="color:var(--c2);font-size:.85rem;margin:2px 0 0">
+              ${isAr ? 'رفع وتفعيل كود الـ QR للفعاليات، وحفظ أرشيف الحضور فور إنهاء الفعالية.' : 'Publish event QR codes and manage attendance archives.'}
+            </p>
+          </div>
+          <span class="sbadge ${activeQr.active ? 'act' : 'pen'}">
+            ${activeQr.active ? (isAr ? '● الفعالية والـ QR نشط حالياً للطلاب' : '● Live Event QR Active') : (isAr ? '○ لا توجد فعالية نشطة حالياً' : '○ No Active Event')}
+          </span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;align-items:start">
+          <div style="background:var(--bei);padding:22px;border-radius:18px;border:2px dashed var(--g2)">
+            <h4 style="color:var(--c1);margin-bottom:12px">${isAr ? 'رفع وتفعيل كود QR لفعالية جديدة' : 'Activate New Event QR Code'}</h4>
+            <form class="form" id="admin-upload-qr-form">
+              <label>${isAr ? 'عنوان الفعالية / النشاط' : 'Event Title / Name'}
+                <input name="eventTitle" placeholder="${isAr ? 'مثال: إفطار رمضان 2026 أو ملتقى التقديمات' : 'e.g. Ramadan Iftar 2026'}" required value="${activeQr.title || ''}">
+              </label>
+              <label>${isAr ? 'اختر صورة كود الـ QR (JPG, PNG)' : 'Select QR Code Image (JPG, PNG)'}
+                <input type="file" id="admin-qr-file" accept="image/*" ${activeQr.active ? '' : 'required'} style="border:none;padding:0;background:none">
+              </label>
+              <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
+                <button class="btn btn-success" type="submit" style="flex:1">${isAr ? 'نشر وتفعيل كود الـ QR للجميع 🚀' : 'Publish & Activate QR 🚀'}</button>
+                ${activeQr.active ? `
+                  <button type="button" class="btn btn-danger" id="btn-stop-qr" style="flex:1">${isAr ? 'إنهاء الفعالية وإيقاف الـ QR 🛑' : 'Stop Event & QR 🛑'}</button>
+                ` : ''}
+              </div>
+              <p class="msg" id="admin-qr-msg" role="status" aria-live="polite"></p>
+            </form>
+          </div>
+
+          <div>
+            ${activeQr.active ? `
+              <div class="qr-active-banner">
+                <h4 style="color:var(--c1);margin-bottom:6px">${isAr ? '🟢 الكود المنشور والمعروض للطلاب الآن:' : '🟢 Currently Active QR Displayed to Students:'}</h4>
+                <p style="font-weight:700;color:var(--g2);font-size:1.05rem">${activeQr.title}</p>
+                <img src="${activeQr.image}" alt="Active QR" class="qr-active-img">
+                <p style="font-size:.82rem;color:var(--c2)">${isAr ? 'وقت التفعيل: ' + (activeQr.createdAt || 'الآن') : 'Activated at: ' + (activeQr.createdAt || 'Now')}</p>
+                <button type="button" class="btn btn-danger sm" id="btn-stop-qr-2" style="margin-top:12px">${isAr ? 'إنهاء الفعالية وأرشفة الحضور' : 'Stop Event & Archive'}</button>
+              </div>
+            ` : `
+              <div style="padding:28px 20px;text-align:center;background:#fff;border:2px dashed var(--bei);border-radius:18px;color:var(--c2)">
+                <div style="font-size:2.4rem;margin-bottom:8px">📴</div>
+                <h4>${isAr ? 'الـ QR غير مفعل حالياً' : 'QR is currently inactive'}</h4>
+                <p style="font-size:.88rem;margin-top:4px">${isAr ? 'قم برفع صورة الـ QR وكتابة اسم الفعالية واضغط تفعيل ليظهر فورياً عند جميع الأعضاء.' : 'Upload a QR image, type event title, and activate it to appear for all members.'}</p>
+              </div>
+            `}
+          </div>
+        </div>
+
+        <!-- 1. Live Active Attendance (ONLY shown when QR is active) -->
+        ${activeQr.active ? `
+          <div style="margin-top:28px;border-top:1.5px solid var(--bei);padding-top:20px;animation:up .3s ease">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+              <h4>🔴 ${isAr ? `الحضور اللحظي في الفعالية النشطة حالياً (${activeEventAttendees.length} طالب)` : `Live Attendance for Active Event (${activeEventAttendees.length})`}</h4>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button type="button" class="btn sm" id="btn-print-attendance" style="padding:6px 14px;font-size:.82rem">
+                  🖨️ ${isAr ? 'طباعة تقرير الحضور اللحظي' : 'Print Live Report'}
+                </button>
+                <button type="button" class="btn sm ghost" id="btn-export-attendance-csv" style="padding:6px 14px;font-size:.82rem">
+                  📥 ${isAr ? 'تصدير (CSV)' : 'Export CSV'}
+                </button>
+              </div>
+            </div>
+            <div class="tbl-wrap" style="margin-top:12px">
+              <table class="atbl">
+                <thead><tr><th>#</th><th>${isAr ? 'الطالب' : 'Student'}</th><th>${isAr ? 'الكلية' : 'Faculty'}</th><th>${isAr ? 'اللجنة' : 'Committee'}</th><th>${isAr ? 'رقم الهاتف' : 'Phone'}</th><th>${isAr ? 'وقت التسجيل' : 'Scan Time'}</th></tr></thead>
+                <tbody>
+                  ${activeEventAttendees.length === 0 ? `<tr><td colspan="6" style="text-align:center;color:var(--c2)">${isAr ? 'لم يقم أي طالب بتسجيل الحضور في هذه الفعالية بعد.' : 'No attendees recorded yet.'}</td></tr>` : activeEventAttendees.map((a, i) => `
+                    <tr>
+                      <td>${i + 1}</td>
+                      <td>
+                        <div style="display:flex;align-items:center;gap:8px">
+                          <img src="${a.photo || '/assets/images/logo.png'}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid var(--g)" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
+                          <b>${a.studentName}</b>
+                        </div>
+                      </td>
+                      <td>${getCollegeName(a.college || '—')}</td>
+                      <td><span class="sbadge" style="background:var(--bei);color:var(--c1)">${getComName(a.committee)}</span></td>
+                      <td><a href="tel:${a.phone}" style="color:var(--c1);font-weight:700" dir="ltr">📞 ${a.phone || '—'}</a></td>
+                      <td><code>${a.time} - ${a.date}</code></td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- 2. Permanent Memory / Archive of All Events & Attendance Lists -->
+        <div style="margin-top:28px;border-top:1.5px solid var(--bei);padding-top:20px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+            <div>
+              <h4 style="color:var(--c1);margin:0;font-size:1.15rem">📂 ${isAr ? 'حافظة وأرشيف الفعاليات وسجلات الحضور السابقة' : 'Past Events Attendance Archive'}</h4>
+              <p style="color:var(--c2);font-size:.85rem;margin:3px 0 0">
+                ${isAr ? 'تضم جميع الفعاليات التي تم إدارتها بالـ QR مع أسماء وكليات وأرقام هواتف الطلاب المشاركين، وإمكانية تصديرها وطباعتها.' : 'Complete archive of all QR events with student names, faculties, phone numbers, CSV export, and print.'}
+              </p>
+            </div>
+            <span class="sbadge act">${eventsArchive.length} ${isAr ? 'فعالية مؤرشفة' : 'Archived Events'}</span>
+          </div>
+
+          <div style="display:grid;gap:14px;margin-top:14px">
+            ${eventsArchive.length === 0 ? `
+              <div style="padding:24px;text-align:center;color:var(--c2);background:var(--bei);border-radius:14px">
+                ${isAr ? 'لا توجد فعاليات مؤرشفة حتى الآن.' : 'No archived events yet.'}
+              </div>
+            ` : eventsArchive.map(ev => `
+              <div class="archived-ev-card" style="background:#fff;border:1.5px solid var(--bei);border-radius:16px;padding:16px 20px;box-shadow:var(--sh);transition:.2s">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+                  <div>
+                    <h4 style="color:var(--c1);font-size:1.08rem;margin:0 0 4px">🗓️ ${ev.title}</h4>
+                    <p style="color:var(--c2);font-size:.85rem;margin:0">
+                      📅 ${ev.date} • ⏰ ${ev.time} • <span class="sbadge act" style="margin-inline-start:6px">👥 ${ev.totalAttendees || (ev.attendees ? ev.attendees.length : 0)} ${isAr ? 'طالب مسجل' : 'Attendees'}</span>
+                    </p>
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button type="button" class="btn sm" data-toggle-event-archive="${ev.id}" style="padding:6px 14px;font-size:.82rem">
+                      📋 ${openedEventArchiveId === ev.id ? (isAr ? 'إخفاء الكشف ✕' : 'Hide') : (isAr ? 'عرض كشف الحضور 👁️' : 'View Attendees')}
+                    </button>
+                    <button type="button" class="btn sm ghost" data-export-event-csv="${ev.id}" style="padding:6px 14px;font-size:.82rem">
+                      📥 ${isAr ? 'تصدير ملف (CSV)' : 'Export CSV'}
+                    </button>
+                    <button type="button" class="btn sm ghost" data-print-event="${ev.id}" style="padding:6px 14px;font-size:.82rem">
+                      🖨️ ${isAr ? 'طباعة كشف' : 'Print Sheet'}
+                    </button>
+                    <button type="button" class="btn sm ghost" data-delete-event="${ev.id}" style="padding:6px 10px;font-size:.82rem;color:var(--red);border-color:var(--red)" title="${isAr ? 'حذف من الأرشيف' : 'Delete'}">
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+
+                ${openedEventArchiveId === ev.id ? `
+                  <div style="margin-top:16px;border-top:1.5px dashed var(--g);padding-top:14px;animation:up .3s ease">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                      <h5 style="color:var(--c1);margin:0">👥 ${isAr ? 'كشف تفصيلي بأسماء وكليات وأرقام هواتف الطلاب المسجلين:' : 'Attendees Details & Phone Numbers:'}</h5>
+                    </div>
+                    <div class="tbl-wrap">
+                      <table class="atbl">
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>${isAr ? 'اسم الطالب' : 'Student Name'}</th>
+                            <th>${isAr ? 'الرقم القومي' : 'National ID'}</th>
+                            <th>${isAr ? 'الكلية' : 'Faculty'}</th>
+                            <th>${isAr ? 'الفرقة' : 'Year'}</th>
+                            <th>${isAr ? 'اللجنة' : 'Committee'}</th>
+                            <th>${isAr ? 'رقم الهاتف' : 'Phone'}</th>
+                            <th>${isAr ? 'وقت التسجيل' : 'Scan Time'}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${ev.attendees && ev.attendees.length > 0 ? ev.attendees.map((att, i) => `
+                            <tr>
+                              <td>${i + 1}</td>
+                              <td>
+                                <div style="display:flex;align-items:center;gap:8px">
+                                  <img src="${att.photo || '/assets/images/logo.png'}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid var(--g)" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
+                                  <b>${att.studentName}</b>
+                                </div>
+                              </td>
+                              <td><code>${att.nid || '—'}</code></td>
+                              <td>${getCollegeName(att.college || '—')}</td>
+                              <td>${getYearName(att.year || '—')}</td>
+                              <td><span class="sbadge" style="background:var(--bei);color:var(--c1)">${getComName(att.committee)}</span></td>
+                              <td><a href="tel:${att.phone}" style="color:var(--c1);font-weight:700" dir="ltr">📞 ${att.phone || '—'}</a></td>
+                              <td><code>${att.time || att.scannedAt || '—'}</code></td>
+                            </tr>
+                          `).join('') : `<tr><td colspan="8" style="text-align:center;color:var(--c2)">${isAr ? 'لا يوجد حضور مسجل في هذه الفعالية.' : 'No attendees recorded.'}</td></tr>`}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    ` : ''}
+
+    ${curAtab === 'sugs' ? `
+      <div class="admin-card">
+        <div class="admin-card-head"><h3>💡 ${isAr ? 'الاقتراحات والأفكار الواردة من الموقع' : 'Submitted Ideas & Suggestions'}</h3></div>
+        <div>
+          ${sugs.map(sg => `
+            <div class="sug-item ${sg.done ? 'done' : ''}">
+              <h4>${sg.act}</h4>
+              <div class="sug-meta">${isAr ? 'المرسل: ' + sg.name + ' (' + sg.email + ') • التاريخ: ' + sg.date : 'From: ' + sg.name + ' (' + sg.email + ') • Date: ' + sg.date}</div>
+              <div class="sug-txt">${sg.msg}</div>
+              <div style="margin-top:10px">
+                <button type="button" class="btn sm ghost" data-toggle-sug="${sg.id}" style="font-size:.8rem;padding:4px 14px">
+                  ${sg.done ? (isAr ? '✓ تمت مراجعتها' : '✓ Reviewed') : (isAr ? 'تمييز كمقروءة ومكتملة' : 'Mark as Reviewed')}
+                </button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
+  </div>`;
+}
+
+function studentView(curUser) {
+  const isAr = lang === "ar";
+  const activeQr = getStore("cf_active_qr", { active: false, title: "", image: "" });
+  const allAttendances = getStore("cf_attendance", []);
+  const myAttendances = allAttendances.filter(a => a.studentId === curUser.id);
+  const alreadyAttended = activeQr.active && myAttendances.some(a => a.event === activeQr.title);
+
+  return `<section class="portal-sec"><div class="wrap">
+    <!-- Top Member Header -->
+    <div class="admin-bar">
+      <div class="admin-bar-user">
+        <div class="admin-av">
+          <img src="${curUser.photo || '/assets/images/logo.png'}" alt="${curUser.name}" onerror="this.onerror=null;this.parentElement.textContent='🎓'">
+        </div>
+        <div>
+          <h2>${isAr ? 'أهلاً بك يا ' + curUser.name : 'Welcome, ' + curUser.name}</h2>
+          <p>${getCollegeName(curUser.college)} — ${getYearName(curUser.year)} • ${getComName(curUser.com)}</p>
+        </div>
+      </div>
+      <div class="admin-bar-actions">
+        <button type="button" class="btn sm ghost" id="btn-toggle-edit-profile" style="height:38px;padding:0 16px;font-size:.85rem;font-weight:700">
+          ✏️ ${isAr ? 'تعديل الملف' : 'Edit Profile'}
+        </button>
+        <button type="button" class="btn sm" id="logout-btn" style="height:38px;padding:0 18px;font-size:.85rem;background:#C8102E;color:#fff;border-color:transparent;font-weight:700">
+          🚪 ${isAr ? 'تسجيل الخروج' : 'Logout'}
+        </button>
+      </div>
+    </div>
+
+    <!-- Edit Profile Inline Card (if toggled) -->
+    ${isEditingProfile ? `
+      <div class="admin-card" id="edit-profile-card" style="border:2px solid var(--g);background:#fff;margin-bottom:24px">
+        <div class="admin-card-head">
+          <h3>✏️ ${isAr ? 'تعديل بيانات الحساب الشخصي' : 'Edit Account Details'}</h3>
+          <button type="button" class="btn sm ghost" id="btn-close-edit-profile">${isAr ? 'إلغاء' : 'Cancel'}</button>
+        </div>
+        <form class="form" id="edit-profile-form">
+          <div class="form-row">
+            <label>${isAr ? 'رقم الهاتف / الواتساب' : 'Phone / WhatsApp'}
+              <input name="phone" type="tel" value="${curUser.phone || ''}" required>
+            </label>
+            <label>${isAr ? 'البريد الإلكتروني' : 'Email'}
+              <input name="email" type="email" value="${curUser.email || ''}">
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label>${isAr ? 'كلمة المرور الجديدة (اتركها فارغة إذا لم ترغب بتغييرها)' : 'New Password (Optional)'}
+              <div class="pw-wrap">
+                <input name="newPw" type="password" minlength="6" placeholder="******">
+                <button type="button" class="pw-toggle-btn" tabindex="-1" aria-label="Toggle password visibility">👁️</button>
+              </div>
+            </label>
+            <label>${isAr ? 'تأكيد كلمة المرور الجديدة' : 'Confirm New Password'}
+              <div class="pw-wrap">
+                <input name="newPwConfirm" type="password" minlength="6" placeholder="******">
+                <button type="button" class="pw-toggle-btn" tabindex="-1" aria-label="Toggle password visibility">👁️</button>
+              </div>
+            </label>
+          </div>
+
+          <div class="photo-uploader">
+            <div class="photo-preview" id="edit-photo-preview-box">
+              <img src="${editPhotoBase64 || curUser.photo || '/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" alt="">
+            </div>
+            <div>
+              <label style="cursor:pointer;font-weight:700;color:var(--c1);display:block;margin-bottom:4px">
+                ${isAr ? 'تغيير الصورة الشخصية' : 'Change Profile Photo'}
+              </label>
+              <input type="file" id="edit-photo-file-input" accept="image/*" style="font-size:.85rem;border:none;padding:0;min-height:unset">
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:14px">
+            <button class="btn big" type="submit" style="flex:1">
+              ${isAr ? 'حفظ التعديلات في الحساب' : 'Save Profile Changes'}
+            </button>
+          </div>
+          <p class="msg" id="edit-prof-msg" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    ` : ''}
+
+    <!-- 1. Active QR Attendance Section -->
+    <div class="admin-card" style="margin-bottom:24px">
+      <div class="admin-card-head">
+        <h3>📱 ${isAr ? 'تسجيل الحضور في الفعالية الحالية (QR Code)' : 'Current Event Attendance (QR Code)'}</h3>
+        <span class="sbadge ${activeQr.active ? 'act' : 'pen'}">
+          ${activeQr.active ? (isAr ? '● فعالية نشطة الآن' : '● Active Event') : (isAr ? '○ لا توجد فعالية جارية' : '○ No Active Event')}
+        </span>
+      </div>
+      ${activeQr.active ? `
+        <div class="qr-active-banner">
+          <h4 style="color:var(--c1);margin-bottom:6px">${isAr ? 'فعالية جارية الآن:' : 'Current Live Event:'} <b>${activeQr.title}</b></h4>
+          <p style="font-size:.9rem;color:var(--c2);margin-bottom:12px">
+            ${isAr ? 'امسح كود الـ QR أو اضغط الزر بالأسفل لتأكيد حضورك الرسمي وتوثيقه:' : 'Scan the QR code or click the button below to verify your official attendance:'}
+          </p>
+          <img src="${activeQr.image}" alt="Event QR" class="qr-active-img">
+          ${alreadyAttended ? `
+            <div style="padding:10px 18px;background:#e6f4ea;color:#137333;font-weight:700;border-radius:999px;display:inline-block;margin-top:10px">
+              ${isAr ? '✅ تم تسجيل حضورك في هذه الفعالية بنجاح!' : '✅ Your attendance for this event has been verified!'}
+            </div>
+          ` : `
+            <button type="button" class="btn btn-success" id="btn-student-record-att" style="margin-top:10px;padding:12px 28px;font-size:.95rem">
+              ${isAr ? 'تسجيل حضوري الآن في الفعالية ✅' : 'Record My Attendance Now ✅'}
+            </button>
+          `}
+          <p class="msg" id="std-att-msg" role="status" aria-live="polite"></p>
+        </div>
+      ` : `
+        <div style="padding:32px 20px;text-align:center;background:var(--bei);border-radius:18px;color:var(--c1)">
+          <div style="font-size:2.5rem;margin-bottom:8px">⏳</div>
+          <h4>${isAr ? 'لا توجد فعالية نشطة حالياً لتسجيل الحضور' : 'No Active Event at the Moment'}</h4>
+          <p style="font-size:.9rem;color:var(--c2);margin-top:6px">
+            ${isAr ? 'سيظهر رمز الـ QR هنا تلقائياً في حسابك بمجرد قيام إدارة الأسرة بتفعيل تسجيل الحضور للفعالية.' : 'The QR code will appear here automatically as soon as family leadership activates event attendance.'}
+          </p>
+        </div>
+      `}
+    </div>
+
+    <!-- 2. Two Main Cards: Membership Info & Events Attended (NO EVALUATION SHOWN!) -->
+    <div class="two" style="margin-bottom:24px">
+      <div class="card">
+        <h3>📋 ${isAr ? 'بيانات العضوية الرسمية' : 'Official Membership Info'}</h3>
+        <p><b>${isAr ? 'اللجنة:' : 'Committee:'}</b> ${getComName(curUser.com)}</p>
+        <p><b>${isAr ? 'الكلية:' : 'Faculty:'}</b> ${getCollegeName(curUser.college)}</p>
+        <p><b>${isAr ? 'الفرقة الدراسية:' : 'Year:'}</b> ${getYearName(curUser.year)}</p>
+        <p><b>${isAr ? 'الحالة:' : 'Status:'}</b> <span class="sbadge act">${curUser.status || (isAr ? 'نشط' : 'Active')}</span></p>
+        <p><b>${isAr ? 'الرقم القومي:' : 'National ID:'}</b> <code>${maskNid(curUser.nid)}</code></p>
+        <p><b>${isAr ? 'رقم الهاتف:' : 'Phone:'}</b> ${curUser.phone || '—'}</p>
+      </div>
+
+      <div class="card">
+        <h3>🎯 ${isAr ? 'الفعاليات التي شاركت فيها' : 'Events Participated In'}</h3>
+        <p style="margin-bottom:12px">
+          <b>${isAr ? 'إجمالي الفعاليات المسجلة:' : 'Total Events Attended:'}</b> 
+          <span style="color:var(--g2);font-weight:800;font-size:1.1rem">${myAttendances.length} ${isAr ? 'فعاليات' : 'events'}</span>
+        </p>
+        ${myAttendances.length === 0 ? `
+          <div style="padding:16px;background:rgba(242,168,29,.08);border-radius:12px;font-size:.88rem;color:var(--c2)">
+            ${isAr ? 'لم تسجل حضوراً في أي فعالية بعد. فور بدء أي فعالية سيظهر كود الـ QR أعلاه لتسجيل حضورك مباشرة.' : 'You have not attended any events yet. When an event begins, the QR will appear above.'}
+          </div>
+        ` : `
+          <div style="display:flex;flex-direction:column;gap:8px">
+            ${myAttendances.map(a => `
+              <div style="padding:10px 14px;background:#fff;border:1.5px solid var(--bei);border-radius:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+                <div>
+                  <b style="color:var(--c1)">${a.event}</b>
+                  <div style="font-size:.8rem;color:var(--c2)">${a.date} • ${a.time}</div>
+                </div>
+                <span class="sbadge act">${isAr ? '✓ تم الحضور' : '✓ Attended'}</span>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+    </div>
+
+    <!-- 3. Family Events Showcase -->
+    <div class="admin-card" style="margin-bottom:24px">
+      <div class="admin-card-head">
+        <h3>🎉 ${isAr ? 'أحدث فعاليات وأنشطة الأسرة' : 'Family Events & Activities'}</h3>
+        <a href="/#events" data-link class="btn ghost sm">${isAr ? 'عرض الكل' : 'View All'}</a>
+      </div>
+      <div class="dash-events-grid">
+        ${C.events.map(ev => `
+          <div class="dash-ev-card">
+            <img src="${ev.img}" alt="${t(ev.title)}" class="dash-ev-img" loading="lazy">
+            <div class="dash-ev-body">
+              <small>${t(ev.date)}</small>
+              <h4>${t(ev.title)}</h4>
+              <p>${t(ev.desc).slice(0, 110)}...</p>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <!-- 4. Family Gallery Showcase -->
+    <div class="admin-card" style="margin-bottom:24px">
+      <div class="admin-card-head">
+        <h3>📸 ${isAr ? 'لحظات من أنشطة وميديا الأسرة' : 'Gallery & Moments'}</h3>
+        <a href="/#gallery" data-link class="btn ghost sm">${isAr ? 'المعرض الكامل' : 'Full Gallery'}</a>
+      </div>
+      <div class="dash-gal-grid">
+        ${C.gallery.slice(0, 8).map((g, i) => `
+          <img src="${g}" alt="Gallery ${i + 1}" class="dash-gal-thumb" data-g="${i}" loading="lazy">
+        `).join('')}
+      </div>
+    </div>
+  </div></section>`;
+}
+
+/* ---------- Router + transitions ---------- */
+function resolve() {
+  const p = location.pathname.replace(/\/+$/, "") || "/", m = p.match(/^\/committees(?:\/([\w-]+))?$/);
+  if (p === "/") return { html: homeView(), title: STR[lang].h1a + " " + S("h1b"), nav: "home" };
+  if (m && !m[1]) return { html: committeesView(), title: S("n_com"), nav: "committees" };
+  if (m && C.committees[m[1]]) return { html: committeeView(m[1]), title: `${C.committees[m[1]].code} — ${t(C.committees[m[1]])}`, nav: "committees" };
+  if (p === "/portal" || p === "/login" || p === "/admin" || p === "/register") {
+    if (p === "/register") curAuthMode = "register";
+    else if (p === "/login") curAuthMode = "login";
+    return { html: portalView(), title: curAuthMode === "register" ? "إنشاء حساب جديد" : S("portal_t"), nav: "portal" };
+  }
+  return { html: notFound(), title: "404", nav: "" };
+}
+
+const BRAND = " | أسرة طلاب من أجل مصر — جامعة حلوان الأهلية";
+function render(scroll) {
+  const r = resolve(); app.innerHTML = r.html; document.title = r.title === "404" || r.nav === "home" ? "أسرة طلاب من أجل مصر — جامعة حلوان الأهلية" : r.title + BRAND;
+  setActive(r.nav); observe();
+  if (scroll === "keep") return;
+  const el = location.hash && $(location.hash.replace(/[^#\w-]/g, ""));
+  if (el) el.scrollIntoView({ behavior: reduce.matches ? "instant" : "smooth" });
+  else scrollTo({ top: 0, behavior: reduce.matches ? "instant" : "smooth" });
+  app.focus({ preventScroll: true });
+}
+function transition(fn) {
+  if (!reduce.matches && document.startViewTransition) document.startViewTransition(fn);
+  else if (!reduce.matches) {
+    app.classList.add("out");
+    setTimeout(() => {
+      fn();
+      app.classList.remove("out");
+      app.classList.add("inn");
+      setTimeout(() => app.classList.remove("inn"), 300);
+    }, 180);
+  } else fn();
+}
+function go(url) {
+  const u = new URL(url, location.origin);
+  if (u.pathname === location.pathname && (location.pathname === "/" || !u.hash)) {
+    history.pushState(null, "", u.pathname + u.hash);
+    const el = u.hash && $(u.hash);
+    if (el) el.scrollIntoView({ behavior: reduce.matches ? "instant" : "smooth" });
+    else scrollTo({ top: 0, behavior: reduce.matches ? "instant" : "smooth" });
+    return;
+  }
+  history.pushState(null, "", u.pathname + u.hash);
+  transition(() => render());
+}
+
+document.addEventListener("click", e => {
+  const a = e.target.closest("a[data-link]");
+  if (a && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+    e.preventDefault();
+    closeMenu();
+    go(a.getAttribute("href"));
+    return;
+  }
+  const g = e.target.closest("[data-g]");
+  if (g) openLb(+g.dataset.g, g);
+});
+addEventListener("popstate", () => transition(() => render()));
+
+/* ---------- Nav, language, static texts ---------- */
+const burger = $("#burger"), menu = $("#menu");
+function closeMenu() { menu.classList.remove("open"); burger.setAttribute("aria-expanded", "false"); }
+burger.onclick = () => burger.setAttribute("aria-expanded", menu.classList.toggle("open"));
+addEventListener("keydown", e => { if (e.key === "Escape") closeMenu(); });
+function setActive(k) { $$("[data-nav]").forEach(a => a.dataset.nav === k ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")); }
+
+function statics() {
+  const d = document.documentElement; d.lang = lang; d.dir = lang === "ar" ? "rtl" : "ltr";
+  $$("[data-i]").forEach(e => e.textContent = S(e.dataset.i));
+  $$("[data-join]").forEach(a => a.href = C.joinUrl);
+  $("#lang").textContent = S("lang"); $("#lang").setAttribute("aria-label", lang === "ar" ? "Switch to English" : "التبديل إلى العربية");
+  burger.setAttribute("aria-label", S("menu")); $(".lb-x").setAttribute("aria-label", S("close")); $(".lb-n.prev").setAttribute("aria-label", S("prev")); $(".lb-n.next").setAttribute("aria-label", S("next"));
+  $("#soc").innerHTML = Object.entries(C.social).map(([k, u]) => {
+    const svg = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[k]}"/></svg>`;
+    return u ? `<a href="${u}" target="_blank" rel="noopener noreferrer" aria-label="${k}">${svg}</a>` : `<span class="off" role="img" aria-label="${k} — ${S("soon")}" title="${S("soon")}">${svg}</span>`;
+  }).join("");
+
+  const navLoginBtn = $(".nav-login");
+  if (navLoginBtn) {
+    const role = localStorage.getItem("cf_role");
+    if (role === "ADMIN") {
+      navLoginBtn.textContent = lang === "ar" ? "👑 لوحة الإدارة" : "👑 Admin Panel";
+      navLoginBtn.href = "/admin";
+    } else if (role === "STUDENT") {
+      navLoginBtn.textContent = lang === "ar" ? "🎓 لوحة العضو" : "🎓 Member Portal";
+      navLoginBtn.href = "/portal";
+    } else {
+      navLoginBtn.textContent = lang === "ar" ? "🔐 تسجيل الدخول" : "🔐 Sign In";
+      navLoginBtn.href = "/portal";
+    }
+  }
+}
+$("#lang").onclick = () => { lang = lang === "ar" ? "en" : "ar"; localStorage.setItem("lang", lang); const y = scrollY; statics(); render("keep"); scrollTo(0, y); };
+
+/* ---------- Image fallbacks ---------- */
+addEventListener("error", e => {
+  const i = e.target;
+  if (i.tagName !== "IMG" || !i.dataset.fb) return;
+  const d = document.createElement("div");
+  d.className = i.dataset.fbc;
+  d.innerHTML = i.dataset.fb;
+  d.setAttribute("role", "img");
+  d.setAttribute("aria-label", i.alt || "");
+  d.dataset.broken = 1;
+  i.replaceWith(d);
+}, true);
+
+/* ---------- Reveal, counters, scroll-spy ---------- */
+let io, spy;
+function observe() {
+  io && io.disconnect(); spy && spy.disconnect();
+  io = new IntersectionObserver(es => es.forEach(e => {
+    if (!e.isIntersecting) return;
+    e.target.classList.add("in");
+    const b = $("b[data-n]", e.target);
+    if (b) count(b);
+    io.unobserve(e.target);
+  }), { threshold: .12 });
+  $$(".rv").forEach(el => io.observe(el));
+  if (reduce.matches) $$(".rv").forEach(el => el.classList.add("in"));
+  if ($("#home")) {
+    spy = new IntersectionObserver(es => es.forEach(e => e.isIntersecting && setActive({ home: "home", about: "about", leaders: "leaders", events: "events", gallery: "gallery" }[e.target.id] || "")), { rootMargin: "-45% 0px -50% 0px" });
+    $$("main > section[id]").forEach(s => spy.observe(s));
+  }
+}
+function count(b) {
+  const n = +b.dataset.n, p = b.dataset.p;
+  if (reduce.matches) return;
+  const t0 = performance.now();
+  (function f(now) {
+    const k = Math.min((now - t0) / 1100, 1);
+    b.textContent = Math.round(n * (1 - Math.pow(1 - k, 3))) + (k === 1 ? p : "");
+    k < 1 && requestAnimationFrame(f);
+  })(t0);
+}
+
+/* ---------- Lightbox ---------- */
+const lb = $("#lb"), lbi = $("#lb-img"); let cur = 0, opener = null;
+const okImgs = () => $$(".gi").filter(g => g.querySelector("img"));
+function showLb(i) { const a = okImgs(); cur = (i + a.length) % a.length; const im = a[cur].querySelector("img"); lbi.src = im.currentSrc || im.src; lbi.alt = im.alt; }
+function openLb(i, el) { const a = okImgs(), idx = a.indexOf(el); if (idx < 0) return; opener = el; showLb(idx); lb.hidden = false; requestAnimationFrame(() => lb.classList.add("show")); document.body.style.overflow = "hidden"; $(".lb-x").focus(); }
+function closeLb() { lb.classList.remove("show"); setTimeout(() => { lb.hidden = true; document.body.style.overflow = ""; opener && opener.focus(); }, reduce.matches ? 0 : 200); }
+lb.addEventListener("click", e => { const a = e.target.dataset.lb; if (a === "x" || e.target === lb) closeLb(); else if (a === "n") showLb(cur + 1); else if (a === "p") showLb(cur - 1); });
+addEventListener("keydown", e => {
+  if (lb.hidden) return;
+  if (e.key === "Escape") closeLb();
+  else if (e.key === "ArrowRight") showLb(cur + (lang === "ar" ? -1 : 1));
+  else if (e.key === "ArrowLeft") showLb(cur + (lang === "ar" ? 1 : -1));
+  else if (e.key === "Tab") { const f = $$("button", lb), i = f.indexOf(document.activeElement); e.preventDefault(); f[(i + (e.shiftKey ? -1 : 1) + f.length) % f.length].focus(); }
+});
+
+/* ---------- Contact form ---------- */
+app.addEventListener("submit", async ev => {
+  const f = ev.target.closest("#cform");
+  if (!f) return;
+  ev.preventDefault();
+  const m = $(".msg", f);
+  let ok = true;
+  m.className = "msg";
+  $$("[required]", f).forEach(x => {
+    const v = x.value.trim(), bad = !v || (x.type === "email" && !/^\S+@\S+\.\S+$/.test(v));
+    x.classList.toggle("err", bad);
+    x.setAttribute("aria-invalid", bad);
+    if (bad) ok = false;
+  });
+  if (!ok) { m.textContent = S("err"); m.classList.add("bad"); return $(".err", f).focus(); }
+  if (ph(C.suggestUrl)) { m.textContent = S("nocfg"); m.classList.add("bad"); return; }
+  try {
+    const r = await fetch(C.suggestUrl, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(Object.fromEntries(new FormData(f))) });
+    if (!r.ok) throw 0;
+    m.textContent = S("ok");
+    f.reset();
+  } catch {
+    m.textContent = S("fail");
+    m.classList.add("bad");
+  }
+});
+
+/* ---------- Print & Export Helpers ---------- */
+function printAttendanceReport() {
+  const isAr = lang === "ar";
+  const activeQr = getStore("cf_active_qr", { active: false, title: "الفعالية" });
+  const attendances = getStore("cf_attendance", []);
+  const eventTitle = activeQr.title || (attendances[0] ? attendances[0].event : (isAr ? "فعالية الأسرة" : "Family Event"));
+  const filtered = attendances.filter(a => a.event === eventTitle);
+
+  const printWin = window.open('', '_blank');
+  if (!printWin) { alert(isAr ? 'يرجى السماح بالنوافذ المنبثقة للطباعة' : 'Please allow popups to print'); return; }
+  printWin.document.write(`
+    <!DOCTYPE html>
+    <html dir="${isAr ? 'rtl' : 'ltr'}" lang="${lang}">
+    <head>
+      <meta charset="utf-8">
+      <title>${isAr ? 'تقرير حضور فعالية — ' + eventTitle : 'Attendance Report — ' + eventTitle}</title>
+      <style>
+        body { font-family: 'Cairo', Arial, sans-serif; padding: 28px; color: #333; direction: ${isAr ? 'rtl' : 'ltr'}; }
+        .header { text-align: center; border-bottom: 2.5px solid #3B2616; padding-bottom: 14px; margin-bottom: 20px; }
+        .header h1 { margin: 0; color: #3B2616; font-size: 22px; }
+        .header h2 { margin: 6px 0 0; color: #C98A0B; font-size: 16px; }
+        .meta { display: flex; justify-content: space-between; margin-bottom: 16px; font-size: 13px; font-weight: bold; background: #F3E3BF; padding: 10px 16px; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 8px 10px; text-align: ${isAr ? 'right' : 'left'}; }
+        th { background: #3B2616; color: #FFD97A; font-weight: bold; }
+        tr:nth-child(even) { background: #fafafa; }
+        .footer { margin-top: 36px; display: flex; justify-content: space-between; font-size: 13px; padding-top: 14px; border-top: 1px dashed #ccc; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>${isAr ? 'أسرة طلاب من أجل مصر — جامعة حلوان الأهلية' : 'Students For Egypt — Helwan National University'}</h1>
+        <h2>${isAr ? 'تقرير الحضور الرسمي المعتمد للفعالية: ' + eventTitle : 'Official Event Attendance Report: ' + eventTitle}</h2>
+      </div>
+      <div class="meta">
+        <div>${isAr ? 'اسم الفعالية: ' : 'Event: '}<b>${eventTitle}</b></div>
+        <div>${isAr ? 'إجمالي الحضور: ' : 'Total Attendees: '}<b>${filtered.length} ${isAr ? 'طالب' : 'students'}</b></div>
+        <div>${isAr ? 'تاريخ التقرير: ' : 'Report Date: '}<b>${new Date().toLocaleDateString(isAr ? 'ar-EG' : 'en-US')}</b></div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>${isAr ? 'اسم الطالب' : 'Student Name'}</th>
+            <th>${isAr ? 'الكلية' : 'Faculty'}</th>
+            <th>${isAr ? 'وقت الحضور' : 'Time'}</th>
+            <th>${isAr ? 'تاريخ الحضور' : 'Date'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filtered.length === 0 ? `<tr><td colspan="5" style="text-align:center">${isAr ? 'لا يوجد حضور مسجل لهذه الفعالية بعد.' : 'No attendance recorded yet.'}</td></tr>` : filtered.map((a, i) => `
+            <tr>
+              <td>${i + 1}</td>
+              <td><b>${a.studentName}</b></td>
+              <td>${getCollegeName(a.college || '—')}</td>
+              <td>${a.time}</td>
+              <td>${a.date}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <div class="footer">
+        <div>${isAr ? 'مسؤول التنظيم: ' : 'OC Head: '}<b>محمد أشرف (Vice Head of OC)</b></div>
+        <div>${isAr ? 'اعتماد رائد الأسرة: ' : 'Supervisor Approval: '}<b>د. محمد حلمي</b></div>
+      </div>
+      <script>window.onload = function() { window.print(); }<\/script>
+    </body>
+    </html>
+  `);
+  printWin.document.close();
+}
+
+function exportAttendanceCSV() {
+  const isAr = lang === "ar";
+  const activeQr = getStore("cf_active_qr", { active: false, title: "الفعالية" });
+  const attendances = getStore("cf_attendance", []);
+  let csv = "\uFEFFم,اسم الطالب,الكلية,الفعالية,وقت الحضور,تاريخ الحضور\n";
+  attendances.forEach((a, i) => {
+    csv += `"${i + 1}","${a.studentName}","${getCollegeName(a.college || '')}","${a.event}","${a.time}","${a.date}"\n`;
+  });
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.setAttribute("download", `تقرير_حضور_${(activeQr.title || 'فعالية').replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function printStudentsDirectory() {
+  const isAr = lang === "ar";
+  const users = getUsers();
+  const printWin = window.open('', '_blank');
+  if (!printWin) { alert(isAr ? 'يرجى السماح بالنوافذ المنبثقة للطباعة' : 'Please allow popups to print'); return; }
+  printWin.document.write(`
+    <!DOCTYPE html>
+    <html dir="${isAr ? 'rtl' : 'ltr'}" lang="${lang}">
+    <head>
+      <meta charset="utf-8">
+      <title>${isAr ? 'كشف أعضاء أسرة طلاب من أجل مصر' : 'Students For Egypt — Members Directory'}</title>
+      <style>
+        body { font-family: 'Cairo', Arial, sans-serif; padding: 24px; color: #333; direction: ${isAr ? 'rtl' : 'ltr'}; }
+        .header { text-align: center; border-bottom: 2.5px solid #3B2616; padding-bottom: 12px; margin-bottom: 18px; }
+        .header h1 { margin: 0; color: #3B2616; font-size: 22px; }
+        .header h2 { margin: 6px 0 0; color: #C98A0B; font-size: 16px; }
+        .meta { display: flex; justify-content: space-between; margin-bottom: 16px; font-size: 13px; font-weight: bold; background: #F3E3BF; padding: 10px 16px; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: ${isAr ? 'right' : 'left'}; }
+        th { background: #3B2616; color: #FFD97A; }
+        tr:nth-child(even) { background: #fafafa; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>${isAr ? 'أسرة طلاب من أجل مصر — جامعة حلوان الأهلية' : 'Students For Egypt — Helwan National University'}</h1>
+        <h2>${isAr ? 'الكشف الرسمي المعتمد لبيانات الأعضاء المسجلين' : 'Official Registered Members Directory'}</h2>
+      </div>
+      <div class="meta">
+        <div>${isAr ? 'إجمالي الأعضاء: ' : 'Total Members: '}<b>${users.length}</b></div>
+        <div>${isAr ? 'تاريخ الاستخراج: ' : 'Date: '}<b>${new Date().toLocaleDateString(isAr ? 'ar-EG' : 'en-US')}</b></div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>${isAr ? 'الاسم' : 'Name'}</th>
+            <th>${isAr ? 'الرقم القومي' : 'National ID'}</th>
+            <th>${isAr ? 'الكلية' : 'Faculty'}</th>
+            <th>${isAr ? 'الفرقة' : 'Year'}</th>
+            <th>${isAr ? 'اللجنة' : 'Committee'}</th>
+            <th>${isAr ? 'الهاتف' : 'Phone'}</th>
+            <th>${isAr ? 'الصلاحية' : 'Role'}</th>
+            <th>${isAr ? 'تاريخ الانضمام' : 'Join Date'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${users.map((u, i) => `
+            <tr>
+              <td>${i + 1}</td>
+              <td><b>${u.name}</b></td>
+              <td><code>${u.nid}</code></td>
+              <td>${getCollegeName(u.college)}</td>
+              <td>${getYearName(u.year)}</td>
+              <td>${getComName(u.com)}</td>
+              <td>${u.phone || '—'}</td>
+              <td>${u.role === 'ADMIN' ? (isAr ? 'أدمن 👑' : 'Admin 👑') : (isAr ? 'عضو' : 'Member')}</td>
+              <td>${u.createdAt}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <script>window.onload = function() { window.print(); }<\/script>
+    </body>
+    </html>
+  `);
+  printWin.document.close();
+}
+
+function exportStudentsCSV() {
+  const users = getUsers();
+  let csv = "\uFEFFالاسم,الرقم القومي,الكلية,الفرقة الدراسية,اللجنة,رقم الهاتف,البريد الإلكتروني,الرتبة,الحالة,تقييم الأداء,تاريخ التسجيل\n";
+  users.forEach(u => {
+    csv += `"${u.name}","'${u.nid}","${getCollegeName(u.college)}","${getYearName(u.year)}","${getComName(u.com)}","'${u.phone || ''}","${u.email || ''}","${u.role === 'ADMIN' ? 'أدمن / مشرف' : 'عضو'}","${u.status}","${u.score || 0}","${u.createdAt}"\n`;
+  });
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.setAttribute("download", `اعضاء_اسرة_طلاب_من_اجل_مصر_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function exportArchivedEventCSV(eventId) {
+  const isAr = lang === "ar";
+  const archive = getStore("cf_events_archive", INIT_EVENTS_ARCHIVE);
+  const ev = archive.find(x => x.id === eventId);
+  if (!ev) return;
+  let csv = "\uFEFFم,اسم الطالب,الرقم القومي,الكلية,الفرقة,اللجنة,رقم الهاتف,وقت الحضور,الفعالية,التاريخ\n";
+  (ev.attendees || []).forEach((a, i) => {
+    csv += `"${i + 1}","${a.studentName}","'${a.nid || ''}","${getCollegeName(a.college || '')}","${getYearName(a.year || '')}","${getComName(a.committee || '')}","'${a.phone || ''}","${a.time || ''}","${ev.title}","${ev.date}"\n`;
+  });
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.setAttribute("download", `كشف_حضور_${ev.title.replace(/\s+/g, '_')}_${ev.date.replace(/[\/\\]/g, '-')}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function printArchivedEventSheet(eventId) {
+  const isAr = lang === "ar";
+  const archive = getStore("cf_events_archive", INIT_EVENTS_ARCHIVE);
+  const ev = archive.find(x => x.id === eventId);
+  if (!ev) return;
+  const printWin = window.open('', '_blank');
+  if (!printWin) { alert(isAr ? 'يرجى السماح بالنوافذ المنبثقة للطباعة' : 'Please allow popups to print'); return; }
+  printWin.document.write(`
+    <!DOCTYPE html>
+    <html dir="${isAr ? 'rtl' : 'ltr'}" lang="${lang}">
+    <head>
+      <meta charset="utf-8">
+      <title>${isAr ? 'كشف حضور فعالية معتمدة' : 'Archived Event Attendance Sheet'} — ${ev.title}</title>
+      <style>
+        body { font-family: 'Cairo', Arial, sans-serif; padding: 24px; color: #333; direction: ${isAr ? 'rtl' : 'ltr'}; }
+        .header { text-align: center; border-bottom: 2.5px solid #3B2616; padding-bottom: 12px; margin-bottom: 18px; }
+        .header h1 { margin: 0; color: #3B2616; font-size: 22px; }
+        .header h2 { margin: 6px 0 0; color: #C98A0B; font-size: 16px; }
+        .meta { display: flex; justify-content: space-between; margin-bottom: 16px; font-size: 13px; font-weight: bold; background: #F3E3BF; padding: 10px 16px; border-radius: 8px; flex-wrap: wrap; gap: 8px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: ${isAr ? 'right' : 'left'}; }
+        th { background: #3B2616; color: #FFD97A; }
+        tr:nth-child(even) { background: #fafafa; }
+        .footer { margin-top: 36px; display: flex; justify-content: space-between; font-size: 13px; padding-top: 14px; border-top: 1px dashed #ccc; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>${isAr ? 'أسرة طلاب من أجل مصر — جامعة حلوان الأهلية' : 'Students For Egypt — Helwan National University'}</h1>
+        <h2>${isAr ? 'سجل حضور رسمي معتمد — حافظة الفعاليات' : 'Official Archived Event Attendance Record'}</h2>
+      </div>
+      <div class="meta">
+        <div>${isAr ? 'اسم الفعالية: ' : 'Event: '}<b>${ev.title}</b></div>
+        <div>${isAr ? 'تاريخ الانعقاد: ' : 'Date: '}<b>${ev.date} ${ev.time ? `(${ev.time})` : ''}</b></div>
+        <div>${isAr ? 'عدد الحضور المسجل: ' : 'Total Attendees: '}<b>${(ev.attendees || []).length} ${isAr ? 'طالب' : 'students'}</b></div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>${isAr ? 'اسم الطالب' : 'Student Name'}</th>
+            <th>${isAr ? 'الرقم القومي' : 'National ID'}</th>
+            <th>${isAr ? 'الكلية' : 'Faculty'}</th>
+            <th>${isAr ? 'الفرقة' : 'Year'}</th>
+            <th>${isAr ? 'اللجنة' : 'Committee'}</th>
+            <th>${isAr ? 'رقم الهاتف' : 'Phone'}</th>
+            <th>${isAr ? 'وقت التسجيل' : 'Time'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${(ev.attendees || []).length === 0 ? `<tr><td colspan="8" style="text-align:center">${isAr ? 'لا يوجد حضور مسجل في هذه الفعالية.' : 'No attendees recorded.'}</td></tr>` : ev.attendees.map((a, i) => `
+            <tr>
+              <td>${i + 1}</td>
+              <td><b>${a.studentName}</b></td>
+              <td><code>${a.nid || '—'}</code></td>
+              <td>${getCollegeName(a.college || '—')}</td>
+              <td>${getYearName(a.year || '—')}</td>
+              <td>${getComName(a.committee || '—')}</td>
+              <td dir="ltr" style="text-align:right">${a.phone || '—'}</td>
+              <td>${a.time || '—'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <div class="footer">
+        <div>${isAr ? 'مسؤول التنظيم: ' : 'OC Head: '}<b>محمد أشرف (Vice Head of OC)</b></div>
+        <div>${isAr ? 'اعتماد رائد الأسرة: ' : 'Supervisor Approval: '}<b>د. محمد حلمي</b></div>
+      </div>
+      <script>window.onload = function() { window.print(); }<\/script>
+    </body>
+    </html>
+  `);
+  printWin.document.close();
+}
+
+/* ---------- Portal & Admin event handlers ---------- */
+app.addEventListener("click", e => {
+  if (e.target.closest("#btn-show-register") || e.target.closest("#btn-show-register-sub")) {
+    curAuthMode = "register";
+    history.replaceState(null, "", "/register");
+    render("keep");
+    return;
+  }
+  if (e.target.closest("#btn-show-login") || e.target.closest("#btn-show-login-sub")) {
+    curAuthMode = "login";
+    history.replaceState(null, "", "/login");
+    render("keep");
+    return;
+  }
+
+  // Profile Edit Toggles
+  if (e.target.closest("#btn-toggle-edit-profile")) {
+    isEditingProfile = !isEditingProfile;
+    render("keep");
+    return;
+  }
+  if (e.target.closest("#btn-close-edit-profile")) {
+    isEditingProfile = false;
+    render("keep");
+    return;
+  }
+
+  // Admin Print & Export buttons
+  if (e.target.closest("#btn-print-attendance")) {
+    printAttendanceReport();
+    return;
+  }
+  if (e.target.closest("#btn-export-attendance-csv")) {
+    exportAttendanceCSV();
+    return;
+  }
+  if (e.target.closest("#btn-print-students")) {
+    printStudentsDirectory();
+    return;
+  }
+  if (e.target.closest("#btn-export-students-csv")) {
+    exportStudentsCSV();
+    return;
+  }
+
+  const atab = e.target.closest("[data-atab]");
+  if (atab) { curAtab = atab.dataset.atab; render("keep"); return; }
+
+  const pwBtn = e.target.closest(".pw-toggle-btn");
+  if (pwBtn) {
+    const inp = pwBtn.parentElement.querySelector("input");
+    if (inp) {
+      if (inp.type === "password") {
+        inp.type = "text";
+        pwBtn.textContent = "🙈";
+      } else {
+        inp.type = "password";
+        pwBtn.textContent = "👁️";
+      }
+    }
+    return;
+  }
+
+  if (e.target.closest("#logout-btn")) {
+    const isAr = lang === "ar";
+    if (confirm(isAr ? "هل أنت متأكد من رغبتك في تسجيل الخروج من الحساب؟" : "Are you sure you want to log out?")) {
+      localStorage.removeItem("cf_role");
+      localStorage.removeItem("cf_user_id");
+      localStorage.removeItem("cf_user_name");
+      isEditingProfile = false;
+      curAuthMode = "login";
+      go("/portal");
+    }
+    return;
+  }
+
+  // Admin stops QR → archive attendees then clear
+  if (e.target.closest("#btn-stop-qr") || e.target.closest("#btn-stop-qr-2")) {
+    const isAr = lang === "ar";
+    if (!confirm(isAr ? "هل تريد إنهاء الفعالية الحالية وأرشفة سجلات الحضور؟" : "End event and archive attendance records?")) return;
+    const activeQr = getStore("cf_active_qr", {});
+    const attendances = getStore("cf_attendance", []);
+    const eventsArchive = getStore("cf_events_archive", INIT_EVENTS_ARCHIVE);
+    if (activeQr.title) {
+      const users = getUsers();
+      const enrichedAttendees = attendances
+        .filter(a => a.event === activeQr.title)
+        .map(a => {
+          const u = users.find(x => x.id === a.studentId) || {};
+          return {
+            studentId: a.studentId,
+            studentName: a.studentName || u.name || "—",
+            college: a.college || u.college || "—",
+            committee: a.committee || u.com || "—",
+            year: a.year || u.year || "—",
+            phone: a.phone || u.phone || "—",
+            nid: a.nid || u.nid || "—",
+            photo: a.photo || u.photo || "",
+            time: a.time,
+            date: a.date
+          };
+        });
+      eventsArchive.unshift({
+        id: "ev-" + Date.now(),
+        title: activeQr.title,
+        date: new Date().toLocaleDateString('ar-EG'),
+        time: new Date().toLocaleTimeString('ar-EG'),
+        totalAttendees: enrichedAttendees.length,
+        attendees: enrichedAttendees
+      });
+      setStore("cf_events_archive", eventsArchive);
+    }
+    setStore("cf_attendance", []);
+    setStore("cf_active_qr", { active: false, title: "", image: "" });
+    render("keep");
+    return;
+  }
+
+  // Student registers attendance for active QR
+  if (e.target.closest("#btn-student-record-att")) {
+    const userId = localStorage.getItem("cf_user_id");
+    const users = getUsers();
+    const curUser = users.find(u => u.id === userId);
+    const activeQr = getStore("cf_active_qr", { active: false });
+    if (!curUser || !activeQr.active) return;
+
+    const attendances = getStore("cf_attendance", []);
+    const already = attendances.some(a => a.studentId === curUser.id && a.event === activeQr.title);
+    if (!already) {
+      attendances.unshift({
+        studentId: curUser.id,
+        studentName: curUser.name,
+        college: curUser.college,
+        committee: curUser.com,
+        year: curUser.year,
+        phone: curUser.phone || "—",
+        nid: curUser.nid || "—",
+        photo: curUser.photo || "",
+        event: activeQr.title,
+        time: new Date().toLocaleTimeString('ar-EG'),
+        date: new Date().toLocaleDateString('ar-EG')
+      });
+      setStore("cf_attendance", attendances);
+    }
+    render("keep");
+    return;
+  }
+
+  const toggleSug = e.target.closest("[data-toggle-sug]");
+  if (toggleSug) {
+    const id = toggleSug.dataset.toggleSug;
+    const sugs = getStore("cf_sugs", INIT_SUGS);
+    const item = sugs.find(x => x.id === id);
+    if (item) { item.done = !item.done; setStore("cf_sugs", sugs); render("keep"); }
+    return;
+  }
+
+  const evalStd = e.target.closest("[data-eval-std]");
+  if (evalStd) {
+    selectedEvalStudentId = evalStd.dataset.evalStd;
+    curAtab = "evals";
+    render("keep");
+    return;
+  }
+
+  const toggleAdmin = e.target.closest("[data-toggle-admin]");
+  if (toggleAdmin) {
+    const sid = toggleAdmin.dataset.toggleAdmin;
+    const users = getUsers();
+    const s = users.find(u => u.id === sid);
+    const curUserId = localStorage.getItem("cf_user_id");
+    const curUser = getStore("cf_cur_user", null) || users.find(u => u.id === curUserId);
+    const isAr = lang === "ar";
+
+    if (!curUser || (!curUser.isSuperAdmin && curUser.role !== 'SUPER_ADMIN')) {
+      alert(isAr ? 'عذراً، صلاحية تعيين وسحب الأدمن مقتصرة حصرياً على المشرف العام (محمد أشرف).' : 'Only the Super Admin can promote or demote admins.');
+      return;
+    }
+
+    if (s) {
+      const newRole = s.role === 'ADMIN' ? 'STUDENT' : 'ADMIN';
+      toggleAdmin.disabled = true;
+      toggleAdmin.textContent = isAr ? 'جاري التحديث...' : 'Updating...';
+
+      try {
+        const res = await fetch('/api/students', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: s.id,
+            role: newRole,
+            requesterId: curUser.id,
+            requesterNid: curUser.nid
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          s.role = newRole;
+          saveUsers(users);
+          render("keep");
+        } else {
+          alert(data.error || (isAr ? 'فشل تحديث الصلاحية في قاعدة البيانات.' : 'Failed to update role in cloud.'));
+          toggleAdmin.disabled = false;
+        }
+      } catch (err) {
+        alert(isAr ? 'تعذر الاتصال بالخادم.' : 'Connection failed.');
+        toggleAdmin.disabled = false;
+      }
+    }
+    return;
+  }
+
+  // Live cloud sync button
+  if (e.target.closest("#btn-sync-cloud-now")) {
+    const isAr = lang === "ar";
+    const btn = e.target.closest("#btn-sync-cloud-now");
+    btn.disabled = true;
+    btn.textContent = isAr ? 'جاري المزامنة...' : 'Syncing...';
+    await syncWithCloud(true);
+    btn.disabled = false;
+    btn.textContent = isAr ? '✓ تم التحديث بنجاح' : '✓ Synced';
+    setTimeout(() => {
+      if (btn) btn.textContent = isAr ? '🔄 تحديث فوري من قاعدة البيانات' : 'Sync Live';
+    }, 2000);
+    return;
+  }
+
+  // Delete Member Permanently
+  const delStd = e.target.closest("[data-delete-student]");
+  if (delStd) {
+    const sid = delStd.dataset.deleteStudent;
+    const sname = delStd.dataset.studentName || 'هذا العضو';
+    const snid = delStd.dataset.studentNid || '';
+    const isAr = lang === "ar";
+
+    if (!confirm(isAr 
+      ? `⚠️ تحذير نهائي:\nهل أنت متأكد من رغبتك في حذف العضو (${sname}) نهائياً؟\nسيتم مسح حسابه وسجلات حضوره وتقييماته من قاعدة البيانات بالكامل كأنه لم يدخل إطلاقاً.` 
+      : `⚠️ Are you sure you want to permanently erase member (${sname})? All data will be deleted.`)) {
+      return;
+    }
+
+    delStd.disabled = true;
+    delStd.textContent = isAr ? 'جاري الحذف...' : 'Deleting...';
+
+    // 1. Delete from PostgreSQL Cloud Database
+    try {
+      const curUserId = localStorage.getItem("cf_user_id");
+      const curUser = getStore("cf_cur_user", null) || getUsers().find(u => u.id === curUserId);
+      const res = await fetch(`/api/students?id=${encodeURIComponent(sid)}&nid=${encodeURIComponent(snid)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: sid,
+          nid: snid,
+          requesterId: curUser?.id,
+          requesterNid: curUser?.nid
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        alert(data.error || (isAr ? 'فشل حذف العضو من قاعدة البيانات.' : 'Failed to delete member from cloud.'));
+        delStd.disabled = false;
+        delStd.textContent = isAr ? 'حذف' : 'Delete';
+        return;
+      }
+    } catch (err) {
+      console.warn('Cloud delete notice:', err);
+    }
+
+    // 2. Erase from local storage
+    let currentUsers = getUsers().filter(u => u.id !== sid && u.nid !== snid);
+    saveUsers(currentUsers);
+
+    // 3. Erase from attendance records
+    let currentAtts = getStore("cf_attendance", []).filter(a => a.studentId !== sid && a.nid !== snid);
+    setStore("cf_attendance", currentAtts);
+
+    // 4. Erase from archived events attendees
+    let currentArchive = getStore("cf_events_archive", []);
+    currentArchive.forEach(ev => {
+      if (ev.attendees) {
+        ev.attendees = ev.attendees.filter(a => a.studentId !== sid && a.nid !== snid);
+        ev.totalAttendees = ev.attendees.length;
+      }
+    });
+    setStore("cf_events_archive", currentArchive);
+
+    alert(isAr ? `✅ تم حذف العضو (${sname}) وكافة بياناته نهائياً من قاعدة البيانات.` : `✅ Member and all records deleted permanently.`);
+    render("keep");
+    return;
+  }
+
+  // Clear eval search
+  if (e.target.closest("#btn-clear-eval-search")) {
+    evalSearchQuery = "";
+    selectedEvalStudentId = "";
+    render("keep");
+    return;
+  }
+
+  // Select eval member from grid
+  const selectEvalStd = e.target.closest("[data-select-eval-std]");
+  if (selectEvalStd) {
+    selectedEvalStudentId = selectEvalStd.dataset.selectEvalStd;
+    render("keep");
+    return;
+  }
+
+  // Toggle event archive expand/collapse
+  const toggleEventArchive = e.target.closest("[data-toggle-event-archive]");
+  if (toggleEventArchive) {
+    const eid = toggleEventArchive.dataset.toggleEventArchive;
+    openedEventArchiveId = openedEventArchiveId === eid ? "" : eid;
+    render("keep");
+    return;
+  }
+
+  // Export archived event CSV
+  const exportEventCsv = e.target.closest("[data-export-event-csv]");
+  if (exportEventCsv) {
+    exportArchivedEventCSV(exportEventCsv.dataset.exportEventCsv);
+    return;
+  }
+
+  // Print archived event sheet
+  const printEvent = e.target.closest("[data-print-event]");
+  if (printEvent) {
+    printArchivedEventSheet(printEvent.dataset.printEvent);
+    return;
+  }
+
+  // Delete archived event
+  const deleteEvent = e.target.closest("[data-delete-event]");
+  if (deleteEvent) {
+    const isAr = lang === "ar";
+    if (!confirm(isAr ? "هل تريد حذف هذه الفعالية من الأرشيف نهائياً؟" : "Permanently delete this event from archive?")) return;
+    const eid = deleteEvent.dataset.deleteEvent;
+    const archive = getStore("cf_events_archive", INIT_EVENTS_ARCHIVE);
+    const updated = archive.filter(ev => ev.id !== eid);
+    setStore("cf_events_archive", updated);
+    if (openedEventArchiveId === eid) openedEventArchiveId = "";
+    render("keep");
+    return;
+  }
+});
+
+function compressAndResizeImage(file, maxDim, callback) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      let w = img.width, h = img.height;
+      if (w > h) {
+        if (w > maxDim) { h = Math.round((h * maxDim) / w); w = maxDim; }
+      } else {
+        if (h > maxDim) { w = Math.round((w * maxDim) / h); h = maxDim; }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      callback(canvas.toDataURL("image/jpeg", 0.75));
+    };
+    img.onerror = function() { callback("/assets/images/logo.png"); };
+    img.src = e.target.result;
+  };
+  reader.onerror = function() { callback("/assets/images/logo.png"); };
+  reader.readAsDataURL(file);
+}
+
+// Profile photo upload preview in register & edit form
+app.addEventListener("change", e => {
+  if (e.target.id === "photo-file-input") {
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      compressAndResizeImage(file, 240, base64 => {
+        regPhotoBase64 = base64;
+        const box = $("#photo-preview-box");
+        if (box) box.innerHTML = `<img src="${regPhotoBase64}" alt="Preview" style="width:100%;height:100%;object-fit:cover">`;
+      });
+    }
+  }
+
+  if (e.target.id === "edit-photo-file-input") {
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      compressAndResizeImage(file, 240, base64 => {
+        editPhotoBase64 = base64;
+        const box = $("#edit-photo-preview-box");
+        if (box) box.innerHTML = `<img src="${editPhotoBase64}" alt="Preview" style="width:100%;height:100%;object-fit:cover">`;
+      });
+    }
+  }
+});
+
+// Form Submissions
+app.addEventListener("submit", async e => {
+  // 1. Unified Login Form
+  const loginForm = e.target.closest("#unified-login-form");
+  if (loginForm) {
+    e.preventDefault();
+    const isAr = lang === "ar";
+    const msg = $("#login-msg");
+    const submitBtn = loginForm.querySelector("button[type=submit]");
+
+    if (lockoutSecondsRemaining > 0) {
+      msg.className = "msg bad";
+      msg.textContent = isAr 
+        ? `⚠️ تم قفل محاولات تسجيل الدخول مؤقتاً لحماية حسابك. يرجى الانتظار (${lockoutSecondsRemaining}) ثانية.`
+        : `⚠️ Too many failed attempts. Please wait (${lockoutSecondsRemaining})s before retrying.`;
+      return;
+    }
+
+    const nid = loginForm.nid.value.trim();
+    const pw = loginForm.pw.value.trim();
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.classList.add("loading");
+      submitBtn.innerHTML = `<span class="spinner"></span> ${isAr ? 'جاري التحقق من الهوية والصلاحيات...' : 'Authenticating...'}`;
+    }
+    msg.className = "msg";
+    msg.textContent = isAr ? "جاري تسجيل الدخول..." : "Signing in...";
+
+    let authenticatedUser = null;
+
+    // 1. Try Remote Cloud Database API first
+    try {
+      const res = await fetch('/api/auth?action=login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nid, pw })
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        authenticatedUser = data.user;
+      }
+    } catch (apiErr) {
+      console.warn('Remote auth notice:', apiErr);
+    }
+
+    // 2. Fallback to local verified users if offline or network failure
+    if (!authenticatedUser) {
+      const users = getUsers();
+      authenticatedUser = users.find(u => u.nid === nid && u.pw === pw);
+    }
+
+    if (authenticatedUser) {
+      loginAttempts = 0;
+      msg.className = "msg";
+      msg.textContent = isAr ? "✅ تم التحقق بنجاح! جاري الدخول للوحة التحكم..." : "✅ Authenticated! Redirecting...";
+      
+      // Update local storage with current verified user
+      const users = getUsers();
+      const existingIdx = users.findIndex(u => u.nid === authenticatedUser.nid);
+      if (existingIdx >= 0) users[existingIdx] = { ...users[existingIdx], ...authenticatedUser };
+      else users.unshift(authenticatedUser);
+      saveUsers(users);
+
+      localStorage.setItem("cf_role", authenticatedUser.role);
+      localStorage.setItem("cf_user_id", authenticatedUser.id);
+      localStorage.setItem("cf_user_name", authenticatedUser.name);
+      setTimeout(() => {
+        history.replaceState(null, "", authenticatedUser.role === "ADMIN" ? "/admin" : "/portal");
+        render();
+      }, 350);
+    } else {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove("loading");
+        submitBtn.textContent = isAr ? 'تسجيل الدخول' : 'Sign In';
+      }
+      loginAttempts++;
+      if (loginAttempts >= 5) {
+        lockoutSecondsRemaining = 60;
+        if (submitBtn) submitBtn.disabled = true;
+        msg.className = "msg bad";
+        msg.textContent = isAr 
+          ? `🔒 تم قفل محاولات الدخول مؤقتاً لمدة 60 ثانية لحماية الحساب من التخمين.`
+          : `🔒 Temporarily locked for 60 seconds due to repeated failed attempts.`;
+
+        clearInterval(lockoutTimer);
+        lockoutTimer = setInterval(() => {
+          lockoutSecondsRemaining--;
+          if (lockoutSecondsRemaining <= 0) {
+            clearInterval(lockoutTimer);
+            loginAttempts = 0;
+            if (submitBtn) submitBtn.disabled = false;
+            msg.className = "msg";
+            msg.textContent = isAr ? "يمكنك الآن المحاولة مجدداً." : "You can try logging in now.";
+          } else {
+            msg.textContent = isAr 
+              ? `🔒 متبقي (${lockoutSecondsRemaining}) ثانية لفك القفل المؤقت...`
+              : `🔒 Locked. (${lockoutSecondsRemaining})s remaining...`;
+          }
+        }, 1000);
+      } else {
+        const remaining = 5 - loginAttempts;
+        msg.className = "msg bad";
+        msg.textContent = isAr 
+          ? `الرقم القومي أو كلمة المرور غير صحيحة. (محاولات متبقية قبل القفل: ${remaining})`
+          : `Invalid National ID or password. (${remaining} attempts left)`;
+      }
+    }
+    return;
+  }
+
+  // 2. Register Form
+  const regForm = e.target.closest("#unified-register-form");
+  if (regForm) {
+    e.preventDefault();
+    const isAr = lang === "ar";
+    const fullName = regForm.fullName.value.trim();
+    const nid = regForm.nid.value.trim();
+    const pw = regForm.pw.value.trim();
+    const pwConfirm = regForm.pwConfirm.value.trim();
+    const phone = regForm.phone.value.trim();
+    const email = (regForm.email && regForm.email.value.trim()) || "";
+    const college = regForm.college.value;
+    const year = regForm.year.value;
+    const com = regForm.com.value;
+    const msg = $("#reg-msg");
+    const submitBtn = regForm.querySelector("button[type=submit]");
+
+    if (pw !== pwConfirm) {
+      msg.className = "msg bad";
+      msg.textContent = isAr ? "كلمة المرور وتأكيدها غير متطابقين." : "Passwords do not match.";
+      return;
+    }
+    if (!/^[0-9]{14}$/.test(nid)) {
+      msg.className = "msg bad";
+      msg.textContent = isAr ? "الرقم القومي يجب أن يتكون من 14 رقماً بالضبط." : "National ID must be exactly 14 digits.";
+      return;
+    }
+
+    const users = getUsers();
+    if (users.some(u => u.nid === nid)) {
+      msg.className = "msg bad";
+      msg.textContent = isAr ? "الرقم القومي هذا مسجل بالفعل. يرجى تسجيل الدخول مباشرة." : "This National ID is already registered. Please sign in.";
+      return;
+    }
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.classList.add("loading");
+      submitBtn.innerHTML = `<span class="spinner"></span> ${isAr ? 'جاري إنشاء الحساب وتفعيل العضوية...' : 'Creating account...'}`;
+    }
+
+    let newUser = {
+      id: "std-" + Date.now(),
+      name: sanitize(fullName),
+      nid: sanitize(nid),
+      pw: pw,
+      phone: sanitize(phone),
+      email: sanitize(email),
+      college: sanitize(college),
+      year: sanitize(year),
+      com: sanitize(com),
+      photo: regPhotoBase64 || "/assets/images/logo.png",
+      role: "STUDENT",
+      score: 9.0,
+      status: "نشط",
+      createdAt: new Date().toLocaleDateString('ar-EG')
+    };
+
+    // Save to PostgreSQL Cloud Database
+    try {
+      const res = await fetch('/api/auth?action=register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: newUser.name,
+          nid: newUser.nid,
+          pw: newUser.pw,
+          phone: newUser.phone,
+          email: newUser.email,
+          college: newUser.college,
+          year: newUser.year,
+          com: newUser.com,
+          photo: newUser.photo
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        newUser = { ...newUser, ...data.user };
+      }
+    } catch (cloudErr) {
+      console.warn('Cloud registration sync notice:', cloudErr);
+    }
+
+    users.push(newUser);
+    saveUsers(users);
+
+    msg.className = "msg";
+    msg.textContent = isAr ? "✅ تم إنشاء الحساب بنجاح! جاري تحويلك لبوابتك..." : "✅ Account created successfully! Redirecting...";
+    localStorage.setItem("cf_role", "STUDENT");
+    localStorage.setItem("cf_user_id", newUser.id);
+    localStorage.setItem("cf_user_name", newUser.name);
+    setTimeout(() => {
+      history.replaceState(null, "", "/portal");
+      render();
+    }, 400);
+    return;
+  }
+
+  // 3. Admin Upload QR Form
+  const qrForm = e.target.closest("#admin-upload-qr-form");
+  if (qrForm) {
+    e.preventDefault();
+    const title = qrForm.eventTitle.value.trim();
+    const fileInput = $("#admin-qr-file");
+    const msg = $("#admin-qr-msg");
+    const file = fileInput && fileInput.files && fileInput.files[0];
+
+    const saveActiveQr = (dataUrl) => {
+      setStore("cf_active_qr", {
+        active: true,
+        title: title || "فعالية الأسرة",
+        image: dataUrl,
+        createdAt: new Date().toLocaleTimeString('ar-EG')
+      });
+      msg.className = "msg";
+      msg.textContent = "تم نشر وتفعيل كود الـ QR بنجاح! يظهر الآن عند جميع الطلاب 🚀";
+      setTimeout(() => render("keep"), 300);
+    };
+
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = ev => saveActiveQr(ev.target.result);
+      reader.readAsDataURL(file);
+    } else {
+      const cur = getStore("cf_active_qr", {});
+      if (cur.image) saveActiveQr(cur.image);
+      else {
+        msg.className = "msg bad";
+        msg.textContent = "يرجى اختيار صورة كود الـ QR.";
+      }
+    }
+    return;
+  }
+
+  // 4. Admin Evaluation Form
+  const evalForm = e.target.closest("#new-eval-form");
+  if (evalForm) {
+    e.preventDefault();
+    const sid = evalForm.studentId.value;
+    const score = parseFloat(evalForm.score.value);
+    const notes = evalForm.notes.value.trim();
+    const users = getUsers();
+    const s = users.find(u => u.id === sid);
+    if (s) {
+      s.score = score;
+      s.notes = notes;
+      saveUsers(users);
+      const isAr = lang === "ar";
+      const m = $("#eval-msg");
+      if (m) {
+        m.className = "msg";
+        m.textContent = isAr ? `تم حفظ وتحديث تقييم العضو (${s.name}) بنجاح (${score} / 10) 🌟` : `Evaluation for (${s.name}) updated successfully (${score} / 10) 🌟`;
+      }
+      setTimeout(() => render("keep"), 500);
+    }
+    return;
+  }
+
+  // 5. Edit Profile Form
+  const editProfForm = e.target.closest("#edit-profile-form");
+  if (editProfForm) {
+    e.preventDefault();
+    const userId = localStorage.getItem("cf_user_id");
+    const users = getUsers();
+    const user = users.find(u => u.id === userId);
+    const msg = $("#edit-prof-msg");
+    if (!user) return;
+
+    const phone = editProfForm.phone.value.trim();
+    const email = editProfForm.email.value.trim();
+    const newPw = editProfForm.newPw.value.trim();
+    const newPwConfirm = editProfForm.newPwConfirm.value.trim();
+
+    if (newPw) {
+      if (newPw !== newPwConfirm) {
+        msg.className = "msg bad";
+        msg.textContent = lang === "ar" ? "كلمة المرور الجديدة وتأكيدها غير متطابقين." : "New passwords do not match.";
+        return;
+      }
+      if (newPw.length < 6) {
+        msg.className = "msg bad";
+        msg.textContent = lang === "ar" ? "كلمة المرور يجب أن تتكون من 6 أحرف على الأقل." : "Password must be at least 6 characters.";
+        return;
+      }
+      user.pw = newPw;
+    }
+
+    user.phone = sanitize(phone);
+    user.email = sanitize(email);
+    if (editPhotoBase64) {
+      user.photo = editPhotoBase64;
+    }
+
+    saveUsers(users);
+    msg.className = "msg";
+    msg.textContent = lang === "ar" ? "تم تحديث بياناتك بنجاح! جاري التحديث..." : "Profile updated successfully! Refreshing...";
+    setTimeout(() => {
+      isEditingProfile = false;
+      editPhotoBase64 = "";
+      render("keep");
+    }, 400);
+    return;
+  }
+});
+
+app.addEventListener("input", e => {
+  const evalSearch = e.target.closest("#eval-search-inp");
+  if (evalSearch) {
+    evalSearchQuery = evalSearch.value;
+    const curPos = evalSearch.selectionStart;
+    render("keep");
+    const newInp = document.getElementById("eval-search-inp");
+    if (newInp) {
+      newInp.focus();
+      try { newInp.setSelectionRange(curPos, curPos); } catch {}
+    }
+    return;
+  }
+
+  const search = e.target.closest("#student-search");
+  if (search) {
+    studentSearchQuery = search.value.trim();
+    const tbody = document.querySelector(".atbl tbody");
+    if (tbody) {
+      const users = getUsers();
+      const curUserId = localStorage.getItem("cf_user_id");
+      const curUser = getStore("cf_cur_user", null) || users.find(u => u.id === curUserId);
+      const isSuperAdmin = curUser && (curUser.role === 'SUPER_ADMIN' || curUser.isSuperAdmin === true);
+      const isAr = lang === "ar";
+      const filtered = users.filter(s => !studentSearchQuery || s.name.toLowerCase().includes(studentSearchQuery.toLowerCase()) || s.college.includes(studentSearchQuery) || (s.com && s.com.includes(studentSearchQuery)));
+      tbody.innerHTML = filtered.map((s, idx) => `
+        <tr>
+          <td>${idx + 1}</td>
+          <td>
+            <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:1.5px solid var(--g);background:#fff">
+              <img src="${s.photo || '/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" alt="">
+            </div>
+          </td>
+          <td><b>${s.name}</b></td>
+          <td><code>${maskNid(s.nid)}</code></td>
+          <td>${getCollegeName(s.college)}</td>
+          <td>${getYearName(s.year)}</td>
+          <td><span class="sbadge" style="background:var(--bei);color:var(--c1)">${getComName(s.com)}</span></td>
+          <td><span class="sbadge ${s.role === 'ADMIN' || s.role === 'SUPER_ADMIN' ? 'act' : 'pen'}">${s.role === 'SUPER_ADMIN' ? (isAr ? 'المشرف العام 👑' : 'Super Admin') : (s.role === 'ADMIN' ? (isAr ? 'مشرف / أدمن' : 'Admin') : (isAr ? 'عضو' : 'Member'))}</span></td>
+          <td>${s.role === 'ADMIN' || s.role === 'SUPER_ADMIN' ? '—' : getScoreBadge(s.score || 0)}</td>
+          <td style="display:flex;gap:6px;align-items:center">
+            ${s.role !== 'ADMIN' && s.role !== 'SUPER_ADMIN' ? `
+              <button type="button" class="btn sm" data-eval-std="${s.id}" style="padding:4px 10px;font-size:.78rem">${isAr ? 'تقييم' : 'Evaluate'}</button>
+            ` : ''}
+            ${isSuperAdmin && s.id !== curUserId && s.role !== 'SUPER_ADMIN' ? `
+              <button type="button" class="btn sm ghost" data-toggle-admin="${s.id}" style="padding:4px 8px;font-size:.78rem;border-color:var(--g)">
+                ${s.role === 'ADMIN' ? (isAr ? 'سحب الأدمن ⬇️' : 'Demote') : (isAr ? 'تعيين أدمن 👑' : 'Make Admin')}
+              </button>
+            ` : (s.id === curUserId ? `<span style="font-size:.78rem;color:var(--g2);font-weight:700">${isAr ? 'حسابك الحالي' : 'Current User'}</span>` : '')}
+            ${isSuperAdmin && s.role !== 'SUPER_ADMIN' && s.id !== curUserId ? `
+              <button type="button" class="btn sm ghost" data-delete-student="${s.id}" data-student-name="${s.name}" data-student-nid="${s.nid}" style="padding:4px 8px;font-size:.78rem;color:var(--red);border-color:var(--red)" title="${isAr ? 'حذف العضو نهائياً من قاعدة البيانات' : 'Delete Member Permanently'}">
+                🗑️ ${isAr ? 'حذف' : 'Delete'}
+              </button>
+            ` : ''}
+          </td>
+        </tr>
+      `).join('');
+    }
+  }
+});
+
+async function syncWithCloud(forceRender) {
+  try {
+    const res = await fetch('/api/students?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.success && Array.isArray(data.students)) {
+      const localUsers = getUsers();
+      const cloudNids = new Set(data.students.map(s => s.nid));
+
+      // 1. Build authoritative user list from cloud
+      let updatedList = data.students;
+
+      const changed = JSON.stringify(updatedList.map(u => ({ id: u.id, nid: u.nid, role: u.role, score: u.score }))) !==
+                      JSON.stringify(localUsers.map(u => ({ id: u.id, nid: u.nid, role: u.role, score: u.score })));
+
+      if (changed || forceRender) {
+        saveUsers(updatedList);
+        const curPath = location.pathname;
+        if (curPath === '/admin' || curPath === '/portal') {
+          render('keep');
+        }
+      }
+    }
+  } catch (err) {
+    // Graceful offline fallback
+  }
+}
+
+statics(); render(); syncWithCloud();
+// Auto poll every 3 seconds for real-time live updates from database!
+setInterval(() => { syncWithCloud(); }, 3000);
