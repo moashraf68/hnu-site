@@ -1058,7 +1058,7 @@ function studentView(curUser) {
   const isAr = lang === "ar";
   const activeQr = getStore("cf_active_qr", { active: false, title: "", image: "" });
   const allAttendances = getStore("cf_attendance", []);
-  const myAttendances = allAttendances.filter(a => a.studentId === curUser.id);
+  const myAttendances = allAttendances.filter(a => a.studentId === curUser.id || a.nid === curUser.nid);
   const alreadyAttended = activeQr.active && myAttendances.some(a => a.event === activeQr.title);
 
   return `<section class="portal-sec"><div class="wrap">
@@ -1790,13 +1790,20 @@ app.addEventListener("click", async e => {
   // Admin stops QR → archive attendees then clear
   if (e.target.closest("#btn-stop-qr") || e.target.closest("#btn-stop-qr-2")) {
     const isAr = lang === "ar";
-    if (!confirm(isAr ? "هل تريد إنهاء الفعالية الحالية وأرشفة سجلات الحضور؟" : "End event and archive attendance records?")) return;
+    if (!confirm(isAr ? "هل تريد إنهاء الفعالية الحالية وإيقاف الـ QR وأرشفة سجلات الحضور؟" : "End event, stop QR and archive attendance records?")) return;
+    const stopBtn = e.target.closest("#btn-stop-qr") || e.target.closest("#btn-stop-qr-2");
+    if (stopBtn) { stopBtn.disabled = true; stopBtn.textContent = isAr ? '⏳ جاري الإنهاء...' : 'Stopping...'; }
+
     const activeQr = getStore("cf_active_qr", {});
     const attendances = getStore("cf_attendance", []);
     const eventsArchive = getStore("cf_events_archive", INIT_EVENTS_ARCHIVE);
+    const curUserId = localStorage.getItem("cf_user_id");
+    const curUser = getStore("cf_cur_user", null) || getUsers().find(u => u.id === curUserId);
+
+    let enrichedAttendees = [];
     if (activeQr.title) {
       const users = getUsers();
-      const enrichedAttendees = attendances
+      enrichedAttendees = attendances
         .filter(a => a.event === activeQr.title)
         .map(a => {
           const u = users.find(x => x.id === a.studentId) || {};
@@ -1813,11 +1820,34 @@ app.addEventListener("click", async e => {
             date: a.date
           };
         });
+    }
+
+    const archivePayload = activeQr.title ? {
+      title: activeQr.title,
+      date: new Date().toLocaleDateString('ar-EG'),
+      time: new Date().toLocaleTimeString('ar-EG'),
+      attendees: enrichedAttendees
+    } : null;
+
+    try {
+      await fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'STOP_QR',
+          requesterId: curUser?.id,
+          requesterNid: curUser?.nid,
+          archiveData: archivePayload
+        })
+      });
+    } catch (err) {}
+
+    if (archivePayload) {
       eventsArchive.unshift({
         id: "ev-" + Date.now(),
-        title: activeQr.title,
-        date: new Date().toLocaleDateString('ar-EG'),
-        time: new Date().toLocaleTimeString('ar-EG'),
+        title: archivePayload.title,
+        date: archivePayload.date,
+        time: archivePayload.time,
         totalAttendees: enrichedAttendees.length,
         attendees: enrichedAttendees
       });
@@ -1831,31 +1861,57 @@ app.addEventListener("click", async e => {
 
   // Student registers attendance for active QR
   if (e.target.closest("#btn-student-record-att")) {
+    const btn = e.target.closest("#btn-student-record-att");
     const userId = localStorage.getItem("cf_user_id");
     const users = getUsers();
-    const curUser = users.find(u => u.id === userId);
+    const curUser = getStore("cf_cur_user", null) || users.find(u => u.id === userId);
     const activeQr = getStore("cf_active_qr", { active: false });
+    const isAr = lang === "ar";
     if (!curUser || !activeQr.active) return;
 
-    const attendances = getStore("cf_attendance", []);
-    const already = attendances.some(a => a.studentId === curUser.id && a.event === activeQr.title);
-    if (!already) {
-      attendances.unshift({
-        studentId: curUser.id,
-        studentName: curUser.name,
-        college: curUser.college,
-        committee: curUser.com,
-        year: curUser.year,
-        phone: curUser.phone || "—",
-        nid: curUser.nid || "—",
-        photo: curUser.photo || "",
-        event: activeQr.title,
-        time: new Date().toLocaleTimeString('ar-EG'),
-        date: new Date().toLocaleDateString('ar-EG')
+    btn.disabled = true;
+    btn.textContent = isAr ? '⏳ جاري توثيق الحضور في السيرفر...' : 'Recording attendance...';
+
+    try {
+      const res = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'RECORD',
+          studentId: curUser.id,
+          eventTitle: activeQr.title
+        })
       });
-      setStore("cf_attendance", attendances);
+      const data = await res.json();
+      if (data.success) {
+        let attendances = getStore("cf_attendance", []);
+        attendances.unshift({
+          id: "att-" + Date.now(),
+          studentId: curUser.id,
+          studentName: curUser.name,
+          college: curUser.college,
+          committee: curUser.com,
+          year: curUser.year,
+          phone: curUser.phone || "—",
+          nid: curUser.nid || "—",
+          photo: curUser.photo || "",
+          event: activeQr.title,
+          time: new Date().toLocaleTimeString('ar-EG'),
+          date: new Date().toLocaleDateString('ar-EG')
+        });
+        setStore("cf_attendance", attendances);
+        await syncAttendanceWithCloud();
+        render("keep");
+      } else {
+        alert(data.error || (isAr ? 'فشل تسجيل الحضور.' : 'Failed to record attendance.'));
+        btn.disabled = false;
+        btn.textContent = isAr ? 'تسجيل حضوري الآن في الفعالية ✅' : 'Record My Attendance Now ✅';
+      }
+    } catch (err) {
+      alert(isAr ? 'حدث خطأ أثناء الاتصال بالسيرفر.' : 'Connection error.');
+      btn.disabled = false;
+      btn.textContent = isAr ? 'تسجيل حضوري الآن في الفعالية ✅' : 'Record My Attendance Now ✅';
     }
-    render("keep");
     return;
   }
 
@@ -2506,33 +2562,70 @@ app.addEventListener("submit", async e => {
   const qrForm = e.target.closest("#admin-upload-qr-form");
   if (qrForm) {
     e.preventDefault();
-    const title = qrForm.eventTitle.value.trim();
+    const title = (qrForm.eventTitle.value || "").trim();
     const fileInput = $("#admin-qr-file");
     const msg = $("#admin-qr-msg");
+    const submitBtn = qrForm.querySelector("button[type=submit]");
     const file = fileInput && fileInput.files && fileInput.files[0];
+    const curUserId = localStorage.getItem("cf_user_id");
+    const curUser = getStore("cf_cur_user", null) || getUsers().find(u => u.id === curUserId);
+    const isAr = lang === "ar";
 
     const saveActiveQr = (dataUrl) => {
-      setStore("cf_active_qr", {
-        active: true,
-        title: title || "فعالية الأسرة",
-        image: dataUrl,
-        createdAt: new Date().toLocaleTimeString('ar-EG')
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isAr ? '⏳ جاري النشر والتفعيل على السيرفر...' : 'Activating...'; }
+      if (msg) { msg.className = "msg"; msg.textContent = ""; }
+
+      fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'SET_ACTIVE_QR',
+          title: title || (isAr ? "فعالية الأسرة" : "Family Event"),
+          image: dataUrl,
+          requesterId: curUser?.id,
+          requesterNid: curUser?.nid
+        })
+      }).then(r => r.json()).then(data => {
+        if (data.success) {
+          setStore("cf_active_qr", {
+            active: true,
+            title: title || (isAr ? "فعالية الأسرة" : "Family Event"),
+            image: dataUrl,
+            createdAt: new Date().toLocaleTimeString('ar-EG')
+          });
+          if (msg) {
+            msg.className = "msg";
+            msg.textContent = isAr ? "✅ تم نشر وتفعيل كود الـ QR بنجاح! يظهر الآن عند جميع الطلاب فورياً 🚀" : "✅ QR code activated and live for all members!";
+          }
+          setTimeout(() => render("keep"), 400);
+        } else {
+          if (msg) {
+            msg.className = "msg bad";
+            msg.textContent = data.error || (isAr ? "فشل نشر كود الـ QR." : "Failed to activate QR.");
+          }
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? 'نشر وتفعيل كود الـ QR للطلاب 🚀' : 'Publish QR Code'; }
+        }
+      }).catch(err => {
+        if (msg) {
+          msg.className = "msg bad";
+          msg.textContent = isAr ? "حدث خطأ في الاتصال بالسيرفر." : "Connection error.";
+        }
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? 'نشر وتفعيل كود الـ QR للطلاب 🚀' : 'Publish QR Code'; }
       });
-      msg.className = "msg";
-      msg.textContent = "تم نشر وتفعيل كود الـ QR بنجاح! يظهر الآن عند جميع الطلاب 🚀";
-      setTimeout(() => render("keep"), 300);
     };
 
     if (file) {
-      const reader = new FileReader();
-      reader.onload = ev => saveActiveQr(ev.target.result);
-      reader.readAsDataURL(file);
+      compressAndResizeImage(file, 800, base64 => {
+        saveActiveQr(base64);
+      });
     } else {
       const cur = getStore("cf_active_qr", {});
       if (cur.image) saveActiveQr(cur.image);
       else {
-        msg.className = "msg bad";
-        msg.textContent = "يرجى اختيار صورة كود الـ QR.";
+        if (msg) {
+          msg.className = "msg bad";
+          msg.textContent = isAr ? "يرجى اختيار صورة كود الـ QR." : "Please select a QR code image.";
+        }
       }
     }
     return;
@@ -2937,6 +3030,54 @@ async function syncGalleryWithCloud() {
   } catch (err) {}
 }
 
+async function syncAttendanceWithCloud() {
+  try {
+    const res = await fetch('/api/attendance?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.success) {
+      let changed = false;
+
+      // 1. Sync Active QR Code
+      if (data.activeQr) {
+        const localQr = getStore("cf_active_qr", { active: false, title: "", image: "" });
+        const qrChanged = localQr.active !== data.activeQr.active ||
+                          localQr.title !== data.activeQr.title ||
+                          localQr.image !== data.activeQr.image;
+        if (qrChanged) {
+          setStore("cf_active_qr", data.activeQr);
+          changed = true;
+        }
+      }
+
+      // 2. Sync Live Attendances
+      if (Array.isArray(data.attendances)) {
+        const localAtts = getStore("cf_attendance", []);
+        if (JSON.stringify(data.attendances) !== JSON.stringify(localAtts)) {
+          setStore("cf_attendance", data.attendances);
+          changed = true;
+        }
+      }
+
+      // 3. Sync Archived Events
+      if (Array.isArray(data.archivedEvents)) {
+        const localArch = getStore("cf_events_archive", []);
+        if (JSON.stringify(data.archivedEvents) !== JSON.stringify(localArch)) {
+          setStore("cf_events_archive", data.archivedEvents);
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        const curPath = location.pathname;
+        if (curPath === '/admin' || curPath === '/portal') {
+          render('keep');
+        }
+      }
+    }
+  } catch (err) {}
+}
+
 async function syncWithCloud(forceRender) {
   try {
     const res = await fetch('/api/students?t=' + Date.now(), { cache: 'no-store' });
@@ -2965,6 +3106,7 @@ async function syncWithCloud(forceRender) {
 
   syncSuggestionsWithCloud();
   syncGalleryWithCloud();
+  syncAttendanceWithCloud();
 }
 
 statics(); render(); syncWithCloud();
