@@ -262,26 +262,49 @@ module.exports = async function handler(req, res) {
     if (req.method === 'DELETE') {
       const body = req.body || {}
       const targetId = body.id || req.query.id
+      const archiveId = body.archiveId || req.query.archiveId
       const clearAll = body.clearAll || req.query.clearAll
       const reqId = body.requesterId || req.query.requesterId
       const reqNid = body.requesterNid || req.query.requesterNid
 
       const isAdmin = await verifyAdmin(reqId, reqNid)
       if (!isAdmin) {
-        return res.status(403).json({ success: false, error: 'غير مصرح.' })
+        return res.status(403).json({ success: false, error: 'غير مصرح: هذا الإجراء للمسؤولين فقط.' })
       }
 
+      // 1. Delete Archived Event sheet from events_archive
+      if (archiveId) {
+        await sql`
+          DELETE FROM events_archive
+          WHERE id::text = ${archiveId}
+             OR id::text = ${archiveId.replace(/^ev-/, '')}
+        `
+        return res.status(200).json({ success: true, message: 'تم حذف كشف الفعالية نهائياً من الأرشيف السحابي.' })
+      }
+
+      // 2. Delete by ID: check events_archive first, then attendance
       if (targetId) {
+        const delArch = await sql`
+          DELETE FROM events_archive
+          WHERE id::text = ${targetId}
+             OR id::text = ${targetId.replace(/^ev-/, '')}
+          RETURNING id
+        `
+        if (delArch.rows.length > 0) {
+          return res.status(200).json({ success: true, message: 'تم حذف الفعالية نهائياً من الأرشيف.' })
+        }
+
         await sql`DELETE FROM attendance WHERE id::text = ${targetId}`
         return res.status(200).json({ success: true, message: 'تم حذف سجل الحضور.' })
       }
 
+      // 3. Clear all live attendances
       if (clearAll === 'true') {
         await sql`DELETE FROM attendance`
         return res.status(200).json({ success: true, message: 'تم مسح سجلات الحضور.' })
       }
 
-      return res.status(400).json({ success: false, error: 'معرف السجل مطلوب.' })
+      return res.status(400).json({ success: false, error: 'معرف السجل أو كشف الفعالية مطلوب للحذف.' })
     }
 
     return res.status(405).json({ success: false, error: 'طريقة غير مدعومة.' })

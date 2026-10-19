@@ -483,8 +483,9 @@ function adminView(curUser, users) {
   const sugs = getStore("cf_sugs", INIT_SUGS);
   const galleryItems = getGalleryItems();
   const activeQr = getStore("cf_active_qr", { active: false, title: "", image: "" });
-  const attendances = getStore("cf_attendance", []);
-  const eventsArchive = getStore("cf_events_archive", INIT_EVENTS_ARCHIVE);
+  const deletedArchiveIds = getStore("cf_deleted_archive_ids", []);
+  const rawArchive = getStore("cf_events_archive", null);
+  const eventsArchive = (Array.isArray(rawArchive) ? rawArchive : INIT_EVENTS_ARCHIVE).filter(e => !deletedArchiveIds.includes(e.id));
   const evaluableMembers = users.filter(u => u.role !== "ADMIN" && u.role !== "SUPER_ADMIN");
   const filteredStudents = users.filter(s => !studentSearchQuery || s.name.toLowerCase().includes(studentSearchQuery.toLowerCase()) || s.college.includes(studentSearchQuery) || (s.com && s.com.includes(studentSearchQuery)));
   const filteredEvalMembers = evaluableMembers.filter(s => !evalSearchQuery || s.name.toLowerCase().includes(evalSearchQuery.toLowerCase()) || (s.nid && s.nid.includes(evalSearchQuery)) || (s.college && s.college.includes(evalSearchQuery)));
@@ -2223,9 +2224,39 @@ app.addEventListener("click", async e => {
   const deleteEvent = e.target.closest("[data-delete-event]");
   if (deleteEvent) {
     const isAr = lang === "ar";
-    if (!confirm(isAr ? "هل تريد حذف هذه الفعالية من الأرشيف نهائياً؟" : "Permanently delete this event from archive?")) return;
+    if (!confirm(isAr ? "هل تريد حذف كشف هذه الفعالية نهائياً من الأرشيف السحابي؟" : "Permanently delete this event from archive?")) return;
     const eid = deleteEvent.dataset.deleteEvent;
-    const archive = getStore("cf_events_archive", INIT_EVENTS_ARCHIVE);
+    const curUserId = localStorage.getItem("cf_user_id");
+    const curUser = getStore("cf_cur_user", null) || getUsers().find(u => u.id === curUserId);
+
+    deleteEvent.disabled = true;
+    deleteEvent.textContent = isAr ? 'جاري الحذف...' : 'Deleting...';
+
+    // 1. Add to deleted IDs set in localStorage
+    let deletedIds = getStore("cf_deleted_archive_ids", []);
+    if (!deletedIds.includes(eid)) {
+      deletedIds.push(eid);
+      setStore("cf_deleted_archive_ids", deletedIds);
+    }
+
+    // 2. Call backend DELETE to erase permanently from PostgreSQL events_archive
+    try {
+      await fetch('/api/attendance', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          archiveId: eid,
+          id: eid,
+          requesterId: curUser?.id,
+          requesterNid: curUser?.nid
+        })
+      });
+    } catch (err) {
+      console.warn('Archive delete error:', err);
+    }
+
+    // 3. Update local store
+    const archive = getStore("cf_events_archive", []);
     const updated = archive.filter(ev => ev.id !== eid);
     setStore("cf_events_archive", updated);
     if (openedEventArchiveId === eid) openedEventArchiveId = "";
@@ -3061,9 +3092,11 @@ async function syncAttendanceWithCloud() {
 
       // 3. Sync Archived Events
       if (Array.isArray(data.archivedEvents)) {
+        const deletedIds = getStore("cf_deleted_archive_ids", []);
+        const filteredArch = data.archivedEvents.filter(e => !deletedIds.includes(e.id));
         const localArch = getStore("cf_events_archive", []);
-        if (JSON.stringify(data.archivedEvents) !== JSON.stringify(localArch)) {
-          setStore("cf_events_archive", data.archivedEvents);
+        if (JSON.stringify(filteredArch) !== JSON.stringify(localArch)) {
+          setStore("cf_events_archive", filteredArch);
           changed = true;
         }
       }
