@@ -24,6 +24,66 @@ function getVideoEmbedUrl(url) {
   return url;
 }
 
+function getVideoBadge(url) {
+  if (!url) return '🎥 فيديو';
+  if (/facebook\.com|fb\.watch/i.test(url)) return '🎥 فيسبوك';
+  if (/tiktok\.com/i.test(url)) return '🎥 تيك توك';
+  if (/instagram\.com/i.test(url)) return '🎥 إنستغرام';
+  if (/youtu\.be|youtube\.com/i.test(url)) return '🎥 يوتيوب';
+  if (/vimeo\.com/i.test(url)) return '🎥 فيميو';
+  if (url.startsWith('data:video') || /\.(mp4|webm|mov|ogg)/i.test(url)) return '🎥 كليب مباشر';
+  return '🎥 فيديو';
+}
+
+function renderVideoPlayer(url, title = "", extraStyle = "") {
+  if (!url) return '';
+  url = url.trim();
+
+  // 1. Direct video (file upload / base64 / mp4 / webm / mov / ogg)
+  if (url.startsWith('data:video') || /\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(url)) {
+    return `<video src="${url}" controls playsinline preload="metadata" title="${title || 'فيديو الأسرة'}" style="width:100%;height:100%;object-fit:cover;border-radius:14px;background:#000;${extraStyle}"></video>`;
+  }
+
+  // 2. YouTube
+  const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/i);
+  if (ytMatch && ytMatch[1]) {
+    return `<iframe src="https://www.youtube.com/embed/${ytMatch[1]}?rel=0" title="${title || 'فيديو يوتيوب'}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="width:100%;height:100%;border:none;border-radius:14px;${extraStyle}"></iframe>`;
+  }
+
+  // 3. Facebook Video / Reel
+  if (/facebook\.com|fb\.watch/i.test(url)) {
+    const fbEmbed = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false&autoplay=false`;
+    return `<iframe src="${fbEmbed}" title="${title || 'فيديو فيسبوك'}" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" allowfullscreen style="width:100%;height:100%;border:none;border-radius:14px;${extraStyle}"></iframe>`;
+  }
+
+  // 4. Instagram Reel / Post
+  const igMatch = url.match(/instagram\.com\/(?:p|reel|tv)\/([^/?#&]+)/i);
+  if (igMatch && igMatch[1]) {
+    return `<iframe src="https://www.instagram.com/reel/${igMatch[1]}/embed" title="${title || 'فيديو إنستغرام'}" allowfullscreen style="width:100%;height:100%;border:none;border-radius:14px;${extraStyle}"></iframe>`;
+  }
+
+  // 5. TikTok
+  const ttMatch = url.match(/tiktok\.com\/(?:@[\w.-]+\/video\/|v\/)(\d+)/i);
+  if (ttMatch && ttMatch[1]) {
+    return `<iframe src="https://www.tiktok.com/embed/v2/${ttMatch[1]}" title="${title || 'فيديو تيك توك'}" allowfullscreen style="width:100%;height:100%;border:none;border-radius:14px;${extraStyle}"></iframe>`;
+  }
+
+  // 6. Vimeo
+  const vimMatch = url.match(/vimeo\.com\/(\d+)/i);
+  if (vimMatch && vimMatch[1]) {
+    return `<iframe src="https://player.vimeo.com/video/${vimMatch[1]}" title="${title || 'فيديو فيميو'}" allowfullscreen style="width:100%;height:100%;border:none;border-radius:14px;${extraStyle}"></iframe>`;
+  }
+
+  // 7. Google Drive
+  const gdriveMatch = url.match(/drive\.google\.com\/file\/d\/([^/?#&]+)/i);
+  if (gdriveMatch && gdriveMatch[1]) {
+    return `<iframe src="https://drive.google.com/file/d/${gdriveMatch[1]}/preview" title="${title || 'فيديو درايف'}" allowfullscreen style="width:100%;height:100%;border:none;border-radius:14px;${extraStyle}"></iframe>`;
+  }
+
+  // 8. Generic iframe
+  return `<iframe src="${url}" title="${title || 'فيديو'}" allowfullscreen style="width:100%;height:100%;border:none;border-radius:14px;${extraStyle}"></iframe>`;
+}
+
 function getGalleryItems() {
   try {
     const v = localStorage.getItem("cf_gallery");
@@ -76,14 +136,10 @@ function homeView() {
 <section id="gallery" class="sec alt"><div class="wrap"><h2 class="rv">${S("n_gal")}</h2><p class="subh rv">${S("gal_sub")}</p>
   <div class="gal">${getGalleryItems().map((g, i) => {
     if (g.type === "VIDEO") {
-      const embedUrl = getVideoEmbedUrl(g.url);
-      const isDirectVideo = g.url.endsWith(".mp4") || g.url.endsWith(".webm");
       return `<div class="gi rv" style="position:relative;background:#000;overflow:hidden">
-        ${isDirectVideo 
-          ? `<video src="${g.url}" controls style="width:100%;height:100%;object-fit:cover;border-radius:16px"></video>` 
-          : `<iframe src="${embedUrl}" title="${g.title || S("n_gal")}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="width:100%;height:100%;border:none;border-radius:16px"></iframe>`}
-        <span style="position:absolute;top:10px;left:10px;background:rgba(200,16,46,.85);color:#fff;padding:2px 10px;border-radius:8px;font-size:.75rem;font-weight:700;pointer-events:none">🎥 فيديو</span>
-        ${g.title ? `<span style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.8));color:#fff;padding:12px 14px 6px;font-size:.82rem;font-weight:600;pointer-events:none;text-align:right">${g.title}</span>` : ''}
+        ${renderVideoPlayer(g.url, g.title)}
+        <span style="position:absolute;top:10px;left:10px;background:rgba(200,16,46,.9);color:#fff;padding:2px 10px;border-radius:8px;font-size:.75rem;font-weight:700;pointer-events:none;z-index:2">${getVideoBadge(g.url)}</span>
+        ${g.title ? `<span style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.85));color:#fff;padding:14px 14px 6px;font-size:.82rem;font-weight:600;pointer-events:none;text-align:right;z-index:2">${g.title}</span>` : ''}
       </div>`;
     } else {
       const imgUrl = g.url || g;
@@ -919,11 +975,35 @@ function adminView(curUser, users) {
             </div>
           </div>
 
-          <!-- Video URL Section -->
+          <!-- Video Section -->
           <div id="gallery-video-wrap" style="display:none;margin-top:14px">
-            <label style="display:block;font-size:.85rem;font-weight:700;margin-bottom:6px">${isAr ? 'رابط فيديو يوتيوب أو رابط مباشر' : 'YouTube or Video URL'}</label>
-            <input type="url" id="gallery-video-url" class="form-input" placeholder="https://www.youtube.com/watch?v=... أو https://youtu.be/..." style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--bdr)">
-            <p style="font-size:.78rem;color:var(--c2);margin:4px 0 0">${isAr ? 'يدعم روابط يوتيوب العادية، الشورتس (Shorts)، والروابط المباشرة.' : 'Supports standard YouTube links, Shorts, and direct MP4 URLs.'}</p>
+            <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+              <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:.86rem;font-weight:700;background:#fff;padding:8px 14px;border-radius:8px;border:1.5px solid var(--bdr)">
+                <input type="radio" name="video_source_mode" value="file" checked id="vmode-file">
+                📁 ${isAr ? 'رفع ملف فيديو من الجهاز' : 'Upload Video File'}
+              </label>
+              <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:.86rem;font-weight:700;background:#fff;padding:8px 14px;border-radius:8px;border:1.5px solid var(--bdr)">
+                <input type="radio" name="video_source_mode" value="url" id="vmode-url">
+                🔗 ${isAr ? 'رابط من أي منصة (فيس، تيك توك، يوتيوب، إلخ)' : 'Video Link (FB, TikTok, YT, etc.)'}
+              </label>
+            </div>
+
+            <!-- 1. Video File Input -->
+            <div id="video-file-subwrap">
+              <label style="display:block;font-size:.85rem;font-weight:700;margin-bottom:6px">${isAr ? 'اختر ملف فيديو من جهازك (MP4 / WebM / إلخ)' : 'Choose Video File'}</label>
+              <input type="file" id="gallery-video-file-input" accept="video/mp4,video/webm,video/ogg,video/quicktime,video/*" class="form-input" style="width:100%;padding:8px;border-radius:8px;border:1px dashed var(--g)">
+              <p style="font-size:.78rem;color:var(--c2);margin:4px 0 0">${isAr ? 'الحد الأقصى للرفع المباشر للكليبات هو 4.2 ميجابايت. للفيديوهات الأكبر حجماً، يُفضّل وضع رابط الفيديو وسيعمل فوراً بدون حد للحجم.' : 'Direct upload limit is 4.2MB. For larger videos, use the video link option.'}</p>
+              <div id="gallery-video-preview-container" style="display:none;margin-top:10px;text-align:center">
+                <video id="gallery-video-preview-el" controls style="max-height:180px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.15);border:2px solid var(--g)"></video>
+              </div>
+            </div>
+
+            <!-- 2. Video URL Input -->
+            <div id="video-url-subwrap" style="display:none">
+              <label style="display:block;font-size:.85rem;font-weight:700;margin-bottom:6px">${isAr ? 'رابط الفيديو من فيسبوك، تيك توك، إنستغرام، يوتيوب، درايف، أو رابط مباشر' : 'Video URL (Facebook, TikTok, Instagram, YouTube, etc.)'}</label>
+              <input type="url" id="gallery-video-url" class="form-input" placeholder="${isAr ? 'مثال: https://www.facebook.com/... أو https://www.tiktok.com/... أو https://youtu.be/...' : 'e.g. Facebook, TikTok, Instagram, or YouTube URL'}" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--bdr)">
+              <p style="font-size:.78rem;color:var(--c2);margin:4px 0 0">${isAr ? 'يدعم تلقائياً فيديوهات وريلز فيسبوك، تيك توك، إنستغرام، يوتيوب، وروابط الـ MP4 المباشرة بدون أي حد للحجم.' : 'Supports Facebook Reels/Videos, TikTok, Instagram, YouTube, and direct video links.'}</p>
+            </div>
           </div>
 
           <div style="margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
@@ -947,12 +1027,8 @@ function adminView(curUser, users) {
               <div style="background:var(--card);border:1px solid var(--bdr);border-radius:14px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.06);display:flex;flex-direction:column">
                 <div style="position:relative;aspect-ratio:16/10;background:#000;overflow:hidden">
                   ${item.type === 'VIDEO' ? `
-                    ${item.url.endsWith('.mp4') || item.url.endsWith('.webm') ? `
-                      <video src="${item.url}" controls style="width:100%;height:100%;object-fit:cover"></video>
-                    ` : `
-                      <iframe src="${getVideoEmbedUrl(item.url)}" title="${item.title || 'Video'}" allowfullscreen style="width:100%;height:100%;border:none"></iframe>
-                    `}
-                    <span style="position:absolute;top:8px;left:8px;background:rgba(200,16,46,.9);color:#fff;padding:2px 8px;border-radius:6px;font-size:.72rem;font-weight:700">🎥 فيديو</span>
+                    ${renderVideoPlayer(item.url, item.title)}
+                    <span style="position:absolute;top:8px;left:8px;background:rgba(200,16,46,.9);color:#fff;padding:2px 8px;border-radius:6px;font-size:.72rem;font-weight:700;z-index:2">${getVideoBadge(item.url)}</span>
                   ` : `
                     <img src="${item.url}" alt="${item.title || 'Gallery Image'}" style="width:100%;height:100%;object-fit:cover" loading="lazy" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
                     <span style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.65);color:#fff;padding:2px 8px;border-radius:6px;font-size:.72rem;font-weight:700">📷 صورة</span>
@@ -2176,6 +2252,44 @@ app.addEventListener("change", e => {
       if (prevCont) prevCont.style.display = "none";
     }
   }
+
+  if (e.target.name === "video_source_mode") {
+    const isFile = e.target.value === "file";
+    const fileSub = $("#video-file-subwrap");
+    const urlSub = $("#video-url-subwrap");
+    if (fileSub && urlSub) {
+      fileSub.style.display = isFile ? "block" : "none";
+      urlSub.style.display = isFile ? "none" : "block";
+    }
+  }
+
+  if (e.target.id === "gallery-video-file-input") {
+    const file = e.target.files && e.target.files[0];
+    const prevCont = $("#gallery-video-preview-container");
+    const prevVid = $("#gallery-video-preview-el");
+    const msgEl = $("#gallery-form-msg");
+    if (file) {
+      const maxBytes = 4.2 * 1024 * 1024;
+      if (file.size > maxBytes) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+        if (msgEl) {
+          msgEl.innerHTML = lang === "ar"
+            ? `⚠️ حجم ملف الفيديو (${sizeMB} ميجا) يتجاوز الحد المسموح للرفع المباشر (4.2 ميجا).<br>💡 يُرجى اختيار <b>(رابط من أي منصة)</b> ووضع رابط الفيديو من فيسبوك أو يوتيوب أو تيك توك وسيعمل بأعلى جودة وبدون أي حد للحجم!`
+            : `⚠️ Video size (${sizeMB}MB) exceeds 4.2MB limit. Please use the video link option.`;
+          msgEl.style.color = 'var(--red)';
+        }
+        e.target.value = '';
+        if (prevCont) prevCont.style.display = "none";
+        return;
+      }
+      if (msgEl) msgEl.textContent = '';
+      const objUrl = URL.createObjectURL(file);
+      if (prevVid) prevVid.src = objUrl;
+      if (prevCont) prevCont.style.display = "block";
+    } else {
+      if (prevCont) prevCont.style.display = "none";
+    }
+  }
 });
 
 // Form Submissions
@@ -2615,63 +2729,109 @@ app.addEventListener("submit", async e => {
         }
       });
     } else {
-      // VIDEO
-      const vidInput = $("#gallery-video-url");
-      const videoUrl = vidInput ? vidInput.value.trim() : '';
-      if (!videoUrl) {
-        if (msgEl) {
-          msgEl.textContent = isAr ? '⚠️ برجاء كتابة رابط الفيديو.' : '⚠️ Please enter video URL.';
-          msgEl.style.color = 'var(--red)';
-        }
-        return;
-      }
+      // VIDEO: either file upload or link from any platform
+      const isFileMode = $("#vmode-file") ? $("#vmode-file").checked : true;
 
-      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isAr ? '⏳ جاري الحفظ في السحابة...' : '⏳ Saving...'; }
-      if (msgEl) msgEl.textContent = '';
-
-      try {
-        const res = await fetch('/api/gallery', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            url: videoUrl,
-            type: 'VIDEO',
-            title: title,
-            requesterId: curUser.id,
-            requesterNid: curUser.nid
-          })
-        });
-        const data = await res.json();
-        if (data.success) {
-          const currentGal = getGalleryItems();
-          const newItem = data.item ? {
-            id: data.item.id,
-            url: data.item.url,
-            type: data.item.type || 'VIDEO',
-            title: data.item.title || title,
-            createdAt: data.item.created_at ? new Date(data.item.created_at).toISOString().slice(0, 10) : ''
-          } : {
-            id: 'gal-' + Date.now(),
-            url: videoUrl,
-            type: 'VIDEO',
-            title: title,
-            createdAt: new Date().toISOString().slice(0, 10)
-          };
-          saveGalleryItems([newItem, ...currentGal.filter(x => x.id !== newItem.id)]);
-          render('keep');
-        } else {
+      const saveVideoToCloud = async (finalUrl) => {
+        try {
+          const res = await fetch('/api/gallery', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              url: finalUrl,
+              type: 'VIDEO',
+              title: title,
+              requesterId: curUser.id,
+              requesterNid: curUser.nid
+            })
+          });
+          const data = await res.json();
+          if (data.success) {
+            const currentGal = getGalleryItems();
+            const newItem = data.item ? {
+              id: data.item.id,
+              url: data.item.url,
+              type: data.item.type || 'VIDEO',
+              title: data.item.title || title,
+              createdAt: data.item.created_at ? new Date(data.item.created_at).toISOString().slice(0, 10) : ''
+            } : {
+              id: 'gal-' + Date.now(),
+              url: finalUrl,
+              type: 'VIDEO',
+              title: title,
+              createdAt: new Date().toISOString().slice(0, 10)
+            };
+            saveGalleryItems([newItem, ...currentGal.filter(x => x.id !== newItem.id)]);
+            render('keep');
+          } else {
+            if (msgEl) {
+              msgEl.textContent = data.error || (isAr ? '❌ حدث خطأ أثناء الحفظ.' : '❌ Save failed.');
+              msgEl.style.color = 'var(--red)';
+            }
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? '🚀 إضافة إلى المعرض السحابي' : 'Add to Cloud Gallery'; }
+          }
+        } catch (err) {
           if (msgEl) {
-            msgEl.textContent = data.error || (isAr ? '❌ حدث خطأ أثناء الحفظ.' : '❌ Save failed.');
+            msgEl.textContent = isAr ? '❌ تعذر الاتصال بالخادم.' : '❌ Server error.';
             msgEl.style.color = 'var(--red)';
           }
           if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? '🚀 إضافة إلى المعرض السحابي' : 'Add to Cloud Gallery'; }
         }
-      } catch (err) {
-        if (msgEl) {
-          msgEl.textContent = isAr ? '❌ تعذر الاتصال بالخادم.' : '❌ Server error.';
-          msgEl.style.color = 'var(--red)';
+      };
+
+      if (isFileMode) {
+        const vidFileInput = $("#gallery-video-file-input");
+        const file = vidFileInput && vidFileInput.files && vidFileInput.files[0];
+        if (!file) {
+          if (msgEl) {
+            msgEl.textContent = isAr ? '⚠️ برجاء اختيار ملف فيديو من جهازك أولاً.' : '⚠️ Please select a video file first.';
+            msgEl.style.color = 'var(--red)';
+          }
+          return;
         }
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? '🚀 إضافة إلى المعرض السحابي' : 'Add to Cloud Gallery'; }
+
+        if (file.size > 4.2 * 1024 * 1024) {
+          const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+          if (msgEl) {
+            msgEl.innerHTML = isAr 
+              ? `⚠️ حجم ملف الفيديو (${sizeMB} ميجا) يتجاوز الحد المسموح للرفع المباشر (4.2 ميجا). يُرجى اختيار (رابط من أي منصة) لوضع رابطه من فيسبوك أو يوتيوب أو تيك توك بدون أي حد للحجم.`
+              : `⚠️ Video size (${sizeMB}MB) exceeds 4.2MB limit.`;
+            msgEl.style.color = 'var(--red)';
+          }
+          return;
+        }
+
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isAr ? '⏳ جاري تحويل ورفع ملف الفيديو للسحابة...' : '⏳ Uploading video...'; }
+        if (msgEl) msgEl.textContent = '';
+
+        const reader = new FileReader();
+        reader.onload = async rev => {
+          await saveVideoToCloud(rev.target.result);
+        };
+        reader.onerror = () => {
+          if (msgEl) {
+            msgEl.textContent = isAr ? '❌ تعذر قراءة ملف الفيديو.' : '❌ Failed to read video file.';
+            msgEl.style.color = 'var(--red)';
+          }
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? '🚀 إضافة إلى المعرض السحابي' : 'Add to Cloud Gallery'; }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // Video URL Mode (Facebook, TikTok, Instagram, YouTube, Vimeo, Drive, direct video)
+        const vidInput = $("#gallery-video-url");
+        const videoUrl = vidInput ? vidInput.value.trim() : '';
+        if (!videoUrl) {
+          if (msgEl) {
+            msgEl.textContent = isAr ? '⚠️ برجاء كتابة رابط الفيديو من فيسبوك، تيك توك، يوتيوب، أو أي منصة.' : '⚠️ Please enter video URL.';
+            msgEl.style.color = 'var(--red)';
+          }
+          return;
+        }
+
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isAr ? '⏳ جاري الحفظ في السحابة...' : '⏳ Saving...'; }
+        if (msgEl) msgEl.textContent = '';
+
+        await saveVideoToCloud(videoUrl);
       }
     }
     return;
