@@ -17,7 +17,8 @@ module.exports = async function handler(req, res) {
       const result = await sql`
         SELECT u.id, u.national_id, u.full_name, u.email, u.phone, u.college, u.academic_year,
                u.committee_id, u.role, u.status, u.profile_photo, u.created_at,
-               COALESCE((SELECT score FROM evaluations WHERE student_id = u.id ORDER BY created_at DESC LIMIT 1), 0) as score
+               COALESCE((SELECT score FROM evaluations WHERE student_id = u.id ORDER BY created_at DESC LIMIT 1), 0) as score,
+               (SELECT notes FROM evaluations WHERE student_id = u.id ORDER BY created_at DESC LIMIT 1) as notes
         FROM users u
         ORDER BY u.created_at DESC
       `
@@ -40,6 +41,7 @@ module.exports = async function handler(req, res) {
           photo: r.profile_photo || '/assets/images/logo.png',
           title: isSuper ? 'المشرف العام (Super Admin)' : (r.role === 'ADMIN' ? 'نائب رئيس لجنة التنظيم (Vice Head of OC)' : 'عضو بالأسرة'),
           score: Number(r.score) || 0,
+          notes: r.notes || '',
           createdAt: r.created_at ? new Date(r.created_at).toISOString().slice(0, 10) : '2026-01-01'
         }
       })
@@ -104,6 +106,29 @@ module.exports = async function handler(req, res) {
       }
 
       if (score !== undefined) {
+        // Any admin (SUPER_ADMIN or ADMIN) can evaluate members
+        let isRequesterAdmin = false
+        if (requesterId || requesterNid) {
+          const reqCheck = await sql`
+            SELECT id, role, national_id FROM users
+            WHERE (id::text = ${requesterId || ''} OR national_id = ${requesterNid || ''})
+            LIMIT 1
+          `
+          if (reqCheck.rows.length > 0) {
+            const reqUser = reqCheck.rows[0]
+            isRequesterAdmin = (reqUser.role === 'SUPER_ADMIN' || reqUser.role === 'ADMIN' || (superNid && reqUser.national_id === superNid))
+          }
+        } else {
+          isRequesterAdmin = true
+        }
+
+        if (!isRequesterAdmin) {
+          return res.status(403).json({
+            success: false,
+            error: 'عذراً، صلاحية تقييم الأعضاء مقتصرة على المشرفين والأدمن فقط.'
+          })
+        }
+
         await sql`
           INSERT INTO evaluations (id, student_id, score, notes, created_at, updated_at)
           VALUES (gen_random_uuid(), ${actualId}, ${score}, ${notes || null}, NOW(), NOW())

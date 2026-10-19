@@ -203,10 +203,7 @@ function getYearName(y) {
   return y;
 }
 
-const INIT_SUGS = [
-  { id: "1", name: "مروان سمير", email: "marwan@example.com", act: "ورشة عمل الذكاء الاصطناعي", aud: "طلاب الحاسبات والهندسة", msg: "تنظيم هاكاثون مصغر لتطبيقات الذكاء الاصطناعي وخدمة المجتمع الجامعي.", date: "2026-10-12", done: false },
-  { id: "2", name: "مريم عادل", email: "mariam@example.com", act: "يوم رياضي وبطولة كرة قدم", aud: "جميع كليات الجامعة", msg: "دوري كرة قدم وسلة بين الكليات المختلفة في الجامعة لتعزيز روح التعاون.", date: "2026-10-10", done: true }
-];
+const INIT_SUGS = [];
 
 function sanitize(str) {
   if (typeof str !== "string") return str;
@@ -789,12 +786,33 @@ function adminView(curUser, users) {
 
     ${curAtab === 'sugs' ? `
       <div class="admin-card">
-        <div class="admin-card-head"><h3>💡 ${isAr ? 'الاقتراحات والأفكار الواردة من الموقع' : 'Submitted Ideas & Suggestions'}</h3></div>
-        <div>
-          ${sugs.map(sg => `
+        <div class="admin-card-head" style="gap:12px;flex-wrap:wrap">
+          <div>
+            <h3>💡 ${isAr ? 'الاقتراحات والأفكار الواردة من الموقع' : 'Submitted Ideas & Suggestions'}</h3>
+            <p style="color:var(--c2);font-size:.85rem;margin:2px 0 0">
+              ${isAr ? 'كافة المقترحات والأفكار محفوظة سحابياً في قاعدة البيانات ويمكنك إدارتها ومسح القديم منها.' : 'All submitted suggestions are saved in the cloud database.'}
+            </p>
+          </div>
+          <button type="button" class="btn sm ghost" id="btn-sync-sugs-now" style="font-size:.82rem;padding:6px 14px;border-color:var(--g);color:var(--g)">
+            🔄 ${isAr ? 'تحديث المقترحات' : 'Refresh Suggestions'}
+          </button>
+        </div>
+        <div style="margin-top:14px">
+          ${sugs.length === 0 ? `
+            <div style="text-align:center;padding:36px 20px;color:var(--c2);background:var(--bei);border-radius:14px">
+              <div style="font-size:2rem;margin-bottom:8px">📭</div>
+              <b>${isAr ? 'صندوق الاقتراحات فارغ حالياً' : 'Suggestion box is currently empty'}</b>
+              <p style="font-size:.85rem;margin:4px 0 0">${isAr ? 'أي مقترح يرسله زوار الموقع سيظهر هنا فورياً.' : 'New ideas submitted from the website will appear here in real-time.'}</p>
+            </div>
+          ` : sugs.map(sg => `
             <div class="sug-item ${sg.done ? 'done' : ''}">
-              <h4>${sg.act}</h4>
-              <div class="sug-meta">${isAr ? 'المرسل: ' + sg.name + ' (' + sg.email + ') • التاريخ: ' + sg.date : 'From: ' + sg.name + ' (' + sg.email + ') • Date: ' + sg.date}</div>
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+                <h4>${sg.act}</h4>
+                <button type="button" class="btn sm ghost" data-delete-sug="${sg.id}" style="padding:4px 10px;font-size:.78rem;color:var(--red);border-color:var(--red)" title="${isAr ? 'مسح المقترح نهائياً من قاعدة البيانات' : 'Delete Suggestion Permanently'}">
+                  🗑️ ${isAr ? 'مسح' : 'Delete'}
+                </button>
+              </div>
+              <div class="sug-meta">${isAr ? 'المرسل: ' + sg.name + (sg.email ? ' (' + sg.email + ')' : '') + (sg.aud ? ' • الفئة المستهدفة: ' + sg.aud : '') + ' • التاريخ: ' + sg.date : 'From: ' + sg.name + (sg.email ? ' (' + sg.email + ')' : '') + ' • Date: ' + sg.date}</div>
               <div class="sug-txt">${sg.msg}</div>
               <div style="margin-top:10px">
                 <button type="button" class="btn sm ghost" data-toggle-sug="${sg.id}" style="font-size:.8rem;padding:4px 14px">
@@ -1171,15 +1189,32 @@ app.addEventListener("submit", async ev => {
     if (bad) ok = false;
   });
   if (!ok) { m.textContent = S("err"); m.classList.add("bad"); return $(".err", f).focus(); }
-  if (ph(C.suggestUrl)) { m.textContent = S("nocfg"); m.classList.add("bad"); return; }
+  const formData = new FormData(f);
+  const payload = {
+    name: (formData.get("name") || "").trim(),
+    email: (formData.get("email") || "").trim(),
+    activity: (formData.get("activity") || "").trim(),
+    audience: (formData.get("audience") || "").trim(),
+    message: (formData.get("message") || "").trim()
+  };
+  const submitBtn = f.querySelector("button[type=submit]");
+  if (submitBtn) { submitBtn.disabled = true; }
   try {
-    const r = await fetch(C.suggestUrl, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(Object.fromEntries(new FormData(f))) });
-    if (!r.ok) throw 0;
-    m.textContent = S("ok");
+    const r = await fetch("/api/suggestions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await r.json();
+    if (!r.ok || !data.success) throw new Error(data.error || "Fail");
+    m.textContent = lang === "ar" ? "✅ تم إرسال فكرتك بنجاح وحفظها في قاعدة البيانات! شكراً لمشاركتك." : "✅ Idea submitted and saved to database successfully! Thank you.";
     f.reset();
-  } catch {
-    m.textContent = S("fail");
+    syncSuggestionsWithCloud();
+  } catch (err) {
+    m.textContent = lang === "ar" ? "⚠️ تعذر إرسال المقترح، يرجى المحاولة مرة أخرى." : S("fail");
     m.classList.add("bad");
+  } finally {
+    if (submitBtn) { submitBtn.disabled = false; }
   }
 });
 
@@ -1600,9 +1635,70 @@ app.addEventListener("click", async e => {
   const toggleSug = e.target.closest("[data-toggle-sug]");
   if (toggleSug) {
     const id = toggleSug.dataset.toggleSug;
-    const sugs = getStore("cf_sugs", INIT_SUGS);
+    const sugs = getStore("cf_sugs", []);
     const item = sugs.find(x => x.id === id);
-    if (item) { item.done = !item.done; setStore("cf_sugs", sugs); render("keep"); }
+    if (item) {
+      item.done = !item.done;
+      setStore("cf_sugs", sugs);
+      render("keep");
+      try {
+        await fetch('/api/suggestions', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+      } catch (err) {
+        console.warn('Suggestion status update notice:', err);
+      }
+    }
+    return;
+  }
+
+  const delSug = e.target.closest("[data-delete-sug]");
+  if (delSug) {
+    const id = delSug.dataset.deleteSug;
+    const isAr = lang === "ar";
+    if (!confirm(isAr ? "هل أنت متأكد من رغبتك في مسح هذا المقترح نهائياً من قاعدة البيانات؟" : "Are you sure you want to permanently delete this suggestion?")) {
+      return;
+    }
+    delSug.disabled = true;
+    delSug.textContent = isAr ? 'جاري المسح...' : 'Deleting...';
+    try {
+      const res = await fetch(`/api/suggestions?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        let sugs = getStore("cf_sugs", []).filter(x => x.id !== id);
+        setStore("cf_sugs", sugs);
+        render("keep");
+      } else {
+        alert(data.error || (isAr ? "فشل مسح المقترح." : "Failed to delete suggestion."));
+        delSug.disabled = false;
+        delSug.textContent = isAr ? 'مسح' : 'Delete';
+      }
+    } catch (e) {
+      alert(isAr ? "حدث خطأ في الاتصال بالخادم." : "Connection failed.");
+      delSug.disabled = false;
+      delSug.textContent = isAr ? 'مسح' : 'Delete';
+    }
+    return;
+  }
+
+  if (e.target.closest("#btn-sync-sugs-now")) {
+    const btn = e.target.closest("#btn-sync-sugs-now");
+    const isAr = lang === "ar";
+    btn.disabled = true;
+    btn.textContent = isAr ? 'جاري التحديث...' : 'Syncing...';
+    await syncSuggestionsWithCloud();
+    btn.disabled = false;
+    btn.textContent = isAr ? '✓ تم التحديث' : '✓ Synced';
+    render("keep");
+    setTimeout(() => {
+      if (btn) btn.textContent = isAr ? '🔄 تحديث المقترحات' : 'Refresh Suggestions';
+    }, 2000);
     return;
   }
 
@@ -2100,17 +2196,57 @@ app.addEventListener("submit", async e => {
     const notes = evalForm.notes.value.trim();
     const users = getUsers();
     const s = users.find(u => u.id === sid);
-    if (s) {
-      s.score = score;
-      s.notes = notes;
-      saveUsers(users);
-      const isAr = lang === "ar";
-      const m = $("#eval-msg");
-      if (m) {
-        m.className = "msg";
-        m.textContent = isAr ? `تم حفظ وتحديث تقييم العضو (${s.name}) بنجاح (${score} / 10) 🌟` : `Evaluation for (${s.name}) updated successfully (${score} / 10) 🌟`;
+    const isAr = lang === "ar";
+    const m = $("#eval-msg");
+    const submitBtn = evalForm.querySelector("button[type=submit]");
+    const curUserId = localStorage.getItem("cf_user_id");
+    const curUser = getStore("cf_cur_user", null) || users.find(u => u.id === curUserId);
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = isAr ? "جاري الحفظ في السيرفر..." : "Saving to database...";
+    }
+
+    try {
+      const res = await fetch('/api/students', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: sid,
+          score: score,
+          notes: notes,
+          requesterId: curUser?.id,
+          requesterNid: curUser?.nid
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (s) {
+          s.score = score;
+          s.notes = notes;
+          saveUsers(users);
+        }
+        if (m) {
+          m.className = "msg";
+          m.textContent = isAr ? `✅ تم حفظ وتحديث تقييم العضو (${s ? s.name : ''}) في قاعدة البيانات بنجاح (${score} / 10) 🌟` : `Evaluation updated in database (${score} / 10) 🌟`;
+        }
+        await syncWithCloud(true);
+      } else {
+        if (m) {
+          m.className = "msg bad";
+          m.textContent = data.error || (isAr ? "⚠️ فشل حفظ التقييم في قاعدة البيانات." : "Failed to save evaluation.");
+        }
       }
-      setTimeout(() => render("keep"), 500);
+    } catch (err) {
+      if (m) {
+        m.className = "msg bad";
+        m.textContent = isAr ? "⚠️ حدث خطأ في الاتصال بالسيرفر." : "Connection failed.";
+      }
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = isAr ? "اعتماد وحفظ التقييم" : "Save Evaluation";
+      }
     }
     return;
   }
@@ -2223,6 +2359,25 @@ app.addEventListener("input", e => {
   }
 });
 
+async function syncSuggestionsWithCloud() {
+  try {
+    const res = await fetch('/api/suggestions?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.success && Array.isArray(data.suggestions)) {
+      const localSugs = getStore("cf_sugs", []);
+      const changed = JSON.stringify(data.suggestions) !== JSON.stringify(localSugs);
+      if (changed) {
+        setStore("cf_sugs", data.suggestions);
+        const curPath = location.pathname;
+        if (curPath === '/admin' || curPath === '/portal') {
+          render('keep');
+        }
+      }
+    }
+  } catch (err) {}
+}
+
 async function syncWithCloud(forceRender) {
   try {
     const res = await fetch('/api/students?t=' + Date.now(), { cache: 'no-store' });
@@ -2230,13 +2385,12 @@ async function syncWithCloud(forceRender) {
     const data = await res.json();
     if (data.success && Array.isArray(data.students)) {
       const localUsers = getUsers();
-      const cloudNids = new Set(data.students.map(s => s.nid));
 
       // 1. Build authoritative user list from cloud
       let updatedList = data.students;
 
-      const changed = JSON.stringify(updatedList.map(u => ({ id: u.id, nid: u.nid, role: u.role, score: u.score }))) !==
-                      JSON.stringify(localUsers.map(u => ({ id: u.id, nid: u.nid, role: u.role, score: u.score })));
+      const changed = JSON.stringify(updatedList.map(u => ({ id: u.id, nid: u.nid, role: u.role, score: u.score, notes: u.notes }))) !==
+                      JSON.stringify(localUsers.map(u => ({ id: u.id, nid: u.nid, role: u.role, score: u.score, notes: u.notes })));
 
       if (changed || forceRender) {
         saveUsers(updatedList);
@@ -2249,6 +2403,8 @@ async function syncWithCloud(forceRender) {
   } catch (err) {
     // Graceful offline fallback
   }
+
+  syncSuggestionsWithCloud();
 }
 
 statics(); render(); syncWithCloud();

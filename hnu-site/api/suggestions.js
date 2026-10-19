@@ -2,8 +2,9 @@ const { getDb } = require('./db')
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST,PATCH')
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST,PATCH,DELETE')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end()
@@ -61,6 +62,22 @@ module.exports = async function handler(req, res) {
       `
 
       return res.status(200).json({ success: true })
+    }
+
+    if (req.method === 'DELETE') {
+      const body = req.body || {}
+      const targetId = body.id || req.query.id
+
+      if (!targetId) {
+        return res.status(400).json({ success: false, error: 'معرف الاقتراح مطلوب للحذف.' })
+      }
+
+      await sql`
+        DELETE FROM suggestions
+        WHERE id = ${targetId}
+      `
+
+      return res.status(200).json({ success: true, message: 'تم مسح المقترح بنجاح من قاعدة البيانات.' })
     }
 
     return res.status(405).json({ success: false, error: 'طريقة غير مدعومة.' })
