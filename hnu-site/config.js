@@ -104,7 +104,7 @@ const CONFIG = {
         { ar: "مهارات المبيعات", en: "Sales Skills" }, { ar: "التفاوض", en: "Negotiation" }, { ar: "التواصل", en: "Communication" },
         { ar: "علاقات الأعمال", en: "Business Relations" }, { ar: "كتابة العروض", en: "Proposal Writing" }
       ],
-      head: { name: "Ziad Tarek", photo: "/assets/images/pr-head.jpg" }, vices: [{ name: "مريم تامر", photo: "/assets/images/pr-vice-1.jpg" }], links: { facebook: "" } }
+      head: { name: "Ziad Tarek", photo: "/assets/images/pr-head.jpg" }, vices: [{ name: "Maryam Tamer", photo: "/assets/images/pr-vice-1.jpg" }], links: { facebook: "" } }
   },
   // الترتيب الإجباري: إفطار رمضان → التقديمات → حفل التخرج
   events: [
