@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     const role = targetRole || 'SUPER_ADMIN';
     
     const result = await sql`
-      UPDATE users SET password = ${hashedPassword} 
+      UPDATE users SET password_hash = ${hashedPassword} 
       WHERE role = ${role}
       RETURNING full_name, role
     `;
