@@ -238,27 +238,46 @@ module.exports = async function handler(req, res) {
 
       // Find user id (could be id or nid)
       const uRes = await sql`
-        SELECT id, full_name FROM users WHERE id::text = ${studentId} OR national_id = ${studentId} LIMIT 1
+        SELECT id, full_name, national_id FROM users
+        WHERE id::text = ${studentId} OR national_id = ${studentId}
+        LIMIT 1
       `
       if (uRes.rows.length === 0) {
-        return res.status(404).json({ success: false, error: 'الطالب غير موجود في قاعدة البيانات.' })
+        return res.status(404).json({
+          success: false,
+          error: 'هذا الرمز غير مسجل لأي طالب في قاعدة بيانات الأسرة.'
+        })
       }
       const actualUserId = uRes.rows[0].id
       const actualUserName = uRes.rows[0].full_name
 
-      // Safely insert attendance record if not already recorded for this event
+      // Check if student is already recorded in this event
+      const checkAtt = await sql`
+        SELECT id, scanned_at FROM attendance
+        WHERE event_id = ${eventId} AND user_id = ${actualUserId}
+        LIMIT 1
+      `
+      if (checkAtt.rows.length > 0) {
+        return res.status(200).json({
+          success: true,
+          alreadyRecorded: true,
+          studentName: actualUserName,
+          scannedAt: checkAtt.rows[0].scanned_at,
+          message: `الطالب (${actualUserName}) مسجل حضوره بالفعل مسبقاً في هذه الفعالية!`
+        })
+      }
+
+      // First time recording
       await sql`
         INSERT INTO attendance (id, event_id, user_id, scanned_at)
-        SELECT gen_random_uuid(), ${eventId}, ${actualUserId}, NOW()
-        WHERE NOT EXISTS (
-          SELECT 1 FROM attendance WHERE event_id = ${eventId} AND user_id = ${actualUserId}
-        )
+        VALUES (gen_random_uuid(), ${eventId}, ${actualUserId}, NOW())
       `
 
       return res.status(200).json({
         success: true,
+        alreadyRecorded: false,
         studentName: actualUserName,
-        message: 'تم تسجيل حضورك في الفعالية بنجاح وتوثيقه في السيرفر!'
+        message: `تم تسجيل حضور الطالب (${actualUserName}) بنجاح وتوثيقه في السيرفر!`
       })
     }
 

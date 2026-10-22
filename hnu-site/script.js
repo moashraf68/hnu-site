@@ -3417,37 +3417,63 @@ async function handleScannedMemberQr(data, statusEl, msgEl) {
     });
     const result = await res.json();
     if (result.success) {
-      // Audio notification chime
-      try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.12);
-      } catch (_) {}
+      if (result.alreadyRecorded) {
+        // Warning notification tone (440Hz alert)
+        try {
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.16);
+        } catch (_) {}
 
-      if (navigator.vibrate) navigator.vibrate(100);
+        const displayName = result.studentName || studentName || studentIdentifier;
+        if (statusEl) statusEl.textContent = '⚠️ ' + (lang === 'ar' ? 'مسجل مسبقاً: ' + displayName : 'Already Recorded: ' + displayName);
+        if (msgEl) {
+          msgEl.className = 'msg';
+          msgEl.style.color = '#b45309';
+          msgEl.textContent = lang === 'ar'
+            ? `⚠️ تنبيه: الطالب (${displayName}) مسجل حضوره بالفعل مسبقاً في هذه الفعالية!`
+            : `⚠️ Notice: (${displayName}) was already recorded in this event!`;
+        }
+      } else {
+        // Success audio notification chime (880Hz crystal bell)
+        try {
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.14, audioCtx.currentTime);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.14);
+        } catch (_) {}
 
-      const displayName = result.studentName || studentName || studentIdentifier;
-      if (statusEl) statusEl.textContent = '✅ ' + (lang === 'ar' ? 'تم تسجيل: ' + displayName : 'Recorded: ' + displayName);
-      if (msgEl) {
-        msgEl.className = 'msg';
-        msgEl.textContent = lang === 'ar' 
-          ? `✅ تم تسجيل حضور الطالب (${displayName}) بنجاح وإضافته لكشف الحضور!` 
-          : `✅ Attendance recorded for (${displayName}) and added to sheet!`;
+        if (navigator.vibrate) navigator.vibrate(100);
+
+        const displayName = result.studentName || studentName || studentIdentifier;
+        if (statusEl) statusEl.textContent = '✅ ' + (lang === 'ar' ? 'تم تسجيل: ' + displayName : 'Recorded: ' + displayName);
+        if (msgEl) {
+          msgEl.className = 'msg';
+          msgEl.style.color = 'var(--g2)';
+          msgEl.textContent = lang === 'ar' 
+            ? `✅ تم تسجيل حضور الطالب (${displayName}) بنجاح وإضافته لكشف الحضور!` 
+            : `✅ Attendance recorded for (${displayName}) and added to sheet!`;
+        }
+
+        // Immediately sync with database and update live sheet
+        await syncAttendanceWithCloud();
+        render('keep');
       }
 
-      // Immediately sync with database and update live sheet
-      await syncAttendanceWithCloud();
-      render('keep');
-
       setTimeout(() => {
-        if (msgEl && msgEl.textContent.includes('✅')) msgEl.textContent = '';
-      }, 4000);
+        if (msgEl) msgEl.textContent = '';
+      }, 5000);
     } else {
       if (statusEl) statusEl.textContent = '⚠️ ' + (result.error || 'Error');
       if (msgEl) {
