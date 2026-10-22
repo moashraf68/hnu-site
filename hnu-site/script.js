@@ -577,9 +577,11 @@ function adminView(curUser, users) {
                 <tr>
                   <td>${idx + 1}</td>
                   <td>
-                    <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:1.5px solid var(--g);background:#fff">
-                      <img src="${s.photo || '/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" alt="">
-                    </div>
+                    <button type="button" class="av-zoom-btn" data-photo="${s.photo || '/assets/images/logo.png'}" data-name="${s.name}" style="background:none;border:none;cursor:pointer;padding:0">
+                      <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:2px solid var(--g);background:#fff;transition:transform .15s" title="${isAr?'اضغط لعرض الصورة':'Click to view photo'}">
+                        <img src="${s.photo || '/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" alt="${s.name}" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
+                      </div>
+                    </button>
                   </td>
                   <td><b>${s.name}</b></td>
                   <td><code>${maskNid(s.nid)}</code></td>
@@ -728,38 +730,52 @@ function adminView(curUser, users) {
 
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;align-items:start">
           <div style="background:var(--bei);padding:22px;border-radius:18px;border:2px dashed var(--g2)">
-            <h4 style="color:var(--c1);margin-bottom:12px">${isAr ? 'رفع وتفعيل كود QR لفعالية جديدة' : 'Activate New Event QR Code'}</h4>
+            <h4 style="color:var(--c1);margin-bottom:12px">${isAr ? 'بدء جلسة حضور جديدة' : 'Start New Attendance Session'}</h4>
             <form class="form" id="admin-upload-qr-form">
-              <label>${isAr ? 'عنوان الفعالية / النشاط' : 'Event Title / Name'}
-                <input name="eventTitle" placeholder="${isAr ? 'مثال: إفطار رمضان 2026 أو ملتقى التقديمات' : 'e.g. Ramadan Iftar 2026'}" required value="${activeQr.title || ''}">
-              </label>
-              <label>${isAr ? 'اختر صورة كود الـ QR (JPG, PNG)' : 'Select QR Code Image (JPG, PNG)'}
-                <input type="file" id="admin-qr-file" accept="image/*" ${activeQr.active ? '' : 'required'} style="border:none;padding:0;background:none">
+              <label>${isAr ? 'عنوان الاجتماع / الفعالية' : 'Meeting / Event Title'}
+                <input name="eventTitle" placeholder="${isAr ? 'مثال: اجتماع أكتوبر 2026' : 'e.g. October Meeting 2026'}" required value="${activeQr.title || ''}">
               </label>
               <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
-                <button class="btn btn-success" type="submit" style="flex:1">${isAr ? 'نشر وتفعيل كود الـ QR للجميع 🚀' : 'Publish & Activate QR 🚀'}</button>
+                <button class="btn btn-success" type="submit" style="flex:1">${activeQr.active ? (isAr ? '🔄 تحديث عنوان الجلسة' : '🔄 Update Session') : (isAr ? '🚀 بدء جلسة الحضور' : '🚀 Start Attendance Session')}</button>
                 ${activeQr.active ? `
-                  <button type="button" class="btn btn-danger" id="btn-stop-qr" style="flex:1">${isAr ? 'إنهاء الفعالية وإيقاف الـ QR 🛑' : 'Stop Event & QR 🛑'}</button>
+                  <button type="button" class="btn btn-danger" id="btn-stop-qr" style="flex:1">${isAr ? 'إنهاء الجلسة 🛑' : 'End Session 🛑'}</button>
                 ` : ''}
               </div>
               <p class="msg" id="admin-qr-msg" role="status" aria-live="polite"></p>
             </form>
+            ${activeQr.active ? `
+              <div style="margin-top:18px;border-top:1.5px solid var(--g);padding-top:16px">
+                <h4 style="color:var(--c1);margin-bottom:8px">📷 ${isAr ? 'مسح QR الأعضاء بالكاميرا' : 'Scan Member QR Codes'}</h4>
+                <p style="font-size:.83rem;color:var(--c2);margin-bottom:10px">${isAr ? 'اضغط لفتح الكاميرا ووجّهها نحو QR العضو لتسجيل حضوره فوراً.' : 'Open camera and point at each member\'s personal QR to record attendance.'}</p>
+                <button type="button" class="btn btn-success" id="btn-open-qr-scanner" style="width:100%;margin-bottom:8px">📷 ${isAr ? 'فتح الكاميرا للمسح' : 'Open Camera to Scan'}</button>
+                <div id="qr-scanner-wrap" style="display:none;border-radius:14px;overflow:hidden;position:relative;background:#000;aspect-ratio:4/3;margin-top:10px">
+                  <video id="qr-video" style="width:100%;height:100%;object-fit:cover" playsinline muted autoplay></video>
+                  <canvas id="qr-canvas" style="display:none"></canvas>
+                  <div style="position:absolute;inset:0;pointer-events:none">
+                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:170px;height:170px;border:3px solid #22c55e;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,.45)"></div>
+                  </div>
+                  <button type="button" id="btn-close-qr-scanner" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.7);color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:.82rem;cursor:pointer">✕ ${isAr ? 'إغلاق' : 'Close'}</button>
+                  <div id="qr-scan-status" style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);color:#fff;padding:5px 14px;border-radius:999px;font-size:.82rem;font-weight:700;white-space:nowrap;max-width:90%"></div>
+                </div>
+                <p class="msg" id="admin-scan-msg" role="status" aria-live="polite" style="margin-top:8px"></p>
+              </div>
+            ` : ''}
           </div>
 
           <div>
             ${activeQr.active ? `
               <div class="qr-active-banner">
-                <h4 style="color:var(--c1);margin-bottom:6px">${isAr ? '🟢 الكود المنشور والمعروض للطلاب الآن:' : '🟢 Currently Active QR Displayed to Students:'}</h4>
+                <h4 style="color:var(--c1);margin-bottom:6px">🟢 ${isAr ? 'جلسة الحضور النشطة الآن:' : 'Currently Active Session:'}</h4>
                 <p style="font-weight:700;color:var(--g2);font-size:1.05rem">${activeQr.title}</p>
-                <img src="${activeQr.image}" alt="Active QR" class="qr-active-img">
-                <p style="font-size:.82rem;color:var(--c2)">${isAr ? 'وقت التفعيل: ' + (activeQr.createdAt || 'الآن') : 'Activated at: ' + (activeQr.createdAt || 'Now')}</p>
-                <button type="button" class="btn btn-danger sm" id="btn-stop-qr-2" style="margin-top:12px">${isAr ? 'إنهاء الفعالية وأرشفة الحضور' : 'Stop Event & Archive'}</button>
+                <p style="font-size:.83rem;color:var(--c2);margin-top:6px;line-height:1.5">📌 ${isAr ? 'كل عضو يرى QR خاص بيانات في بوابته. وجّه الكاميرا أعلاه نحو QR العضو لتسجيل حضوره.' : 'Each member sees their own personal QR in their portal. Scan it with the camera above to record attendance.'}</p>
+                <p style="font-size:.8rem;color:var(--c2);margin-top:4px">${isAr ? 'بدأت: ' + (activeQr.createdAt || 'الآن') : 'Started: ' + (activeQr.createdAt || 'Now')}</p>
+                <button type="button" class="btn btn-danger sm" id="btn-stop-qr-2" style="margin-top:12px">${isAr ? 'إنهاء الجلسة وأرشفة الحضور' : 'End Session & Archive'}</button>
               </div>
             ` : `
               <div style="padding:28px 20px;text-align:center;background:#fff;border:2px dashed var(--bei);border-radius:18px;color:var(--c2)">
                 <div style="font-size:2.4rem;margin-bottom:8px">📴</div>
-                <h4>${isAr ? 'الـ QR غير مفعل حالياً' : 'QR is currently inactive'}</h4>
-                <p style="font-size:.88rem;margin-top:4px">${isAr ? 'قم برفع صورة الـ QR وكتابة اسم الفعالية واضغط تفعيل ليظهر فورياً عند جميع الأعضاء.' : 'Upload a QR image, type event title, and activate it to appear for all members.'}</p>
+                <h4>${isAr ? 'لا توجد جلسة حضور نشطة' : 'No Active Attendance Session'}</h4>
+                <p style="font-size:.88rem;margin-top:6px">${isAr ? 'اكتب اسم الاجتماع وابدأ الجلسة — كل عضو سيجد QR خاص به في بوابته تلقائياً.' : 'Type the meeting name and start the session — each member will find their own personal QR in their portal.'}</p>
               </div>
             `}
           </div>
@@ -1149,28 +1165,28 @@ function studentView(curUser) {
       </div>
       ${activeQr.active ? `
         <div class="qr-active-banner">
-          <h4 style="color:var(--c1);margin-bottom:6px">${isAr ? 'فعالية جارية الآن:' : 'Current Live Event:'} <b>${activeQr.title}</b></h4>
+          <h4 style="color:var(--c1);margin-bottom:6px">${isAr ? 'جلسة حضور نشطة:' : 'Live Attendance Session:'} <b>${activeQr.title}</b></h4>
           <p style="font-size:.9rem;color:var(--c2);margin-bottom:12px">
-            ${isAr ? 'امسح كود الـ QR أو اضغط الزر بالأسفل لتأكيد حضورك الرسمي وتوثيقه:' : 'Scan the QR code or click the button below to verify your official attendance:'}
+            ${isAr ? 'هذا كود الـ QR الخاص بك. أرِه للأدمن ليسكنه ويسجّل حضورك.' : 'This is your personal QR code. Show it to the admin to scan and record your attendance.'}
           </p>
-          <img src="${activeQr.image}" alt="Event QR" class="qr-active-img">
+          <canvas id="member-qr-canvas" style="border-radius:12px;border:3px solid var(--g2);background:#fff;display:block;margin:0 auto 12px;max-width:200px;width:100%"></canvas>
           ${alreadyAttended ? `
-            <div style="padding:10px 18px;background:#e6f4ea;color:#137333;font-weight:700;border-radius:999px;display:inline-block;margin-top:10px">
-              ${isAr ? '✅ تم تسجيل حضورك في هذه الفعالية بنجاح!' : '✅ Your attendance for this event has been verified!'}
+            <div style="padding:10px 18px;background:#e6f4ea;color:#137333;font-weight:700;border-radius:999px;display:inline-block;margin-top:4px">
+              ${isAr ? '✅ تم تسجيل حضورك في هذه الجلسة بنجاح!' : '✅ Your attendance has been recorded!'}
             </div>
           ` : `
-            <button type="button" class="btn btn-success" id="btn-student-record-att" style="margin-top:10px;padding:12px 28px;font-size:.95rem">
-              ${isAr ? 'تسجيل حضوري الآن في الفعالية ✅' : 'Record My Attendance Now ✅'}
-            </button>
+            <div style="padding:8px 18px;background:#fff3cd;color:#856404;font-weight:600;border-radius:999px;display:inline-block;margin-top:4px;font-size:.88rem">
+              ⏳ ${isAr ? 'انتظر حتى يسكن الأدمن الـ QR الخاص بك...' : 'Waiting for admin to scan your QR...'}
+            </div>
           `}
           <p class="msg" id="std-att-msg" role="status" aria-live="polite"></p>
         </div>
       ` : `
         <div style="padding:32px 20px;text-align:center;background:var(--bei);border-radius:18px;color:var(--c1)">
           <div style="font-size:2.5rem;margin-bottom:8px">⏳</div>
-          <h4>${isAr ? 'لا توجد فعالية نشطة حالياً لتسجيل الحضور' : 'No Active Event at the Moment'}</h4>
+          <h4>${isAr ? 'لا توجد جلسة حضور نشطة حالياً' : 'No Active Attendance Session'}</h4>
           <p style="font-size:.9rem;color:var(--c2);margin-top:6px">
-            ${isAr ? 'سيظهر رمز الـ QR هنا تلقائياً في حسابك بمجرد قيام إدارة الأسرة بتفعيل تسجيل الحضور للفعالية.' : 'The QR code will appear here automatically as soon as family leadership activates event attendance.'}
+            ${isAr ? 'سيظهر كود الـ QR الخاص بك تلقائياً هنا فور بدء الأدمن لجلسة حضور جديدة.' : 'Your personal QR code will appear here automatically when the admin starts an attendance session.'}
           </p>
         </div>
       `}
@@ -1186,6 +1202,12 @@ function studentView(curUser) {
         <p><b>${isAr ? 'الحالة:' : 'Status:'}</b> <span class="sbadge act">${curUser.status || (isAr ? 'نشط' : 'Active')}</span></p>
         <p><b>${isAr ? 'الرقم القومي:' : 'National ID:'}</b> <code>${maskNid(curUser.nid)}</code></p>
         <p><b>${isAr ? 'رقم الهاتف:' : 'Phone:'}</b> ${curUser.phone || '—'}</p>
+        ${(curUser.score !== undefined && curUser.score !== null && curUser.score > 0) || curUser.notes ? `
+          <div style="margin-top:12px;padding-top:12px;border-top:1.5px solid var(--bei)">
+            ${curUser.score !== undefined && curUser.score !== null ? `<p><b>⭐ ${isAr ? 'تقييم أدائك:' : 'Your Score:'}</b> ${getScoreBadge(curUser.score || 0)}</p>` : ''}
+            ${curUser.notes ? `<p style="margin-top:8px"><b>💬 ${isAr ? 'ملاحظات الإدارة:' : 'Admin Notes:'}</b><br><span style="color:var(--c2);font-size:.9rem;line-height:1.6;display:block;margin-top:4px;padding:10px 14px;background:var(--bei);border-radius:10px;white-space:pre-wrap">${curUser.notes}</span></p>` : ''}
+          </div>
+        ` : ''}
       </div>
 
       <div class="card">
@@ -1755,6 +1777,33 @@ app.addEventListener("click", async e => {
   }
   if (e.target.closest("#btn-export-students-csv")) {
     exportStudentsCSV();
+    return;
+  }
+
+  // Photo zoom for admin — show member photo in lightbox
+  const avZoom = e.target.closest(".av-zoom-btn");
+  if (avZoom) {
+    const photo = avZoom.dataset.photo;
+    const name = avZoom.dataset.name;
+    const lbEl = document.getElementById("lb");
+    const lbImg = document.getElementById("lb-img");
+    if (lbEl && lbImg && photo) {
+      lbImg.src = photo;
+      lbImg.alt = name || "";
+      lbImg.style.cssText = "max-width:320px;max-height:320px;border-radius:50%;object-fit:cover;border:4px solid var(--g2)";
+      lbEl.removeAttribute("hidden");
+      lbEl.focus();
+    }
+    return;
+  }
+
+  // QR Scanner buttons
+  if (e.target.closest("#btn-open-qr-scanner")) {
+    await startQrScanner();
+    return;
+  }
+  if (e.target.closest("#btn-close-qr-scanner")) {
+    stopQrScanner();
     return;
   }
 
@@ -2590,76 +2639,53 @@ app.addEventListener("submit", async e => {
     return;
   }
 
-  // 3. Admin Upload QR Form
+  // 3. Admin Upload QR Form — starts attendance session (no image needed)
   const qrForm = e.target.closest("#admin-upload-qr-form");
   if (qrForm) {
     e.preventDefault();
     const title = (qrForm.eventTitle.value || "").trim();
-    const fileInput = $("#admin-qr-file");
     const msg = $("#admin-qr-msg");
     const submitBtn = qrForm.querySelector("button[type=submit]");
-    const file = fileInput && fileInput.files && fileInput.files[0];
     const curUserId = localStorage.getItem("cf_user_id");
     const curUser = getStore("cf_cur_user", null) || getUsers().find(u => u.id === curUserId);
     const isAr = lang === "ar";
 
-    const saveActiveQr = (dataUrl) => {
-      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isAr ? '⏳ جاري النشر والتفعيل على السيرفر...' : 'Activating...'; }
-      if (msg) { msg.className = "msg"; msg.textContent = ""; }
-
-      fetch('/api/attendance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'SET_ACTIVE_QR',
-          title: title || (isAr ? "فعالية الأسرة" : "Family Event"),
-          image: dataUrl,
-          requesterId: curUser?.id,
-          requesterNid: curUser?.nid
-        })
-      }).then(r => r.json()).then(data => {
-        if (data.success) {
-          setStore("cf_active_qr", {
-            active: true,
-            title: title || (isAr ? "فعالية الأسرة" : "Family Event"),
-            image: dataUrl,
-            createdAt: new Date().toLocaleTimeString('ar-EG')
-          });
-          if (msg) {
-            msg.className = "msg";
-            msg.textContent = isAr ? "✅ تم نشر وتفعيل كود الـ QR بنجاح! يظهر الآن عند جميع الطلاب فورياً 🚀" : "✅ QR code activated and live for all members!";
-          }
-          setTimeout(() => render("keep"), 400);
-        } else {
-          if (msg) {
-            msg.className = "msg bad";
-            msg.textContent = data.error || (isAr ? "فشل نشر كود الـ QR." : "Failed to activate QR.");
-          }
-          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? 'نشر وتفعيل كود الـ QR للطلاب 🚀' : 'Publish QR Code'; }
-        }
-      }).catch(err => {
-        if (msg) {
-          msg.className = "msg bad";
-          msg.textContent = isAr ? "حدث خطأ في الاتصال بالسيرفر." : "Connection error.";
-        }
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? 'نشر وتفعيل كود الـ QR للطلاب 🚀' : 'Publish QR Code'; }
-      });
-    };
-
-    if (file) {
-      compressAndResizeImage(file, 800, base64 => {
-        saveActiveQr(base64);
-      });
-    } else {
-      const cur = getStore("cf_active_qr", {});
-      if (cur.image) saveActiveQr(cur.image);
-      else {
-        if (msg) {
-          msg.className = "msg bad";
-          msg.textContent = isAr ? "يرجى اختيار صورة كود الـ QR." : "Please select a QR code image.";
-        }
-      }
+    if (!title) {
+      if (msg) { msg.className = "msg bad"; msg.textContent = isAr ? "يرجى كتابة عنوان الاجتماع/الفعالية." : "Please enter a meeting/event title."; }
+      return;
     }
+
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isAr ? "⏳ جاري البدء..." : "Starting..."; }
+    if (msg) { msg.className = "msg"; msg.textContent = ""; }
+
+    fetch('/api/attendance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'SET_ACTIVE_QR',
+        title: title,
+        image: '',
+        requesterId: curUser?.id,
+        requesterNid: curUser?.nid
+      })
+    }).then(r => r.json()).then(data => {
+      if (data.success) {
+        setStore("cf_active_qr", {
+          active: true,
+          title: title,
+          image: '',
+          createdAt: new Date().toLocaleTimeString('ar-EG')
+        });
+        if (msg) { msg.className = "msg"; msg.textContent = isAr ? "✅ تم بدء جلسة الحضور! QR خاص يظهر الآن لكل عضو في بوابته 🚀" : "✅ Attendance session started! Each member now sees their personal QR."; }
+        setTimeout(() => render("keep"), 400);
+      } else {
+        if (msg) { msg.className = "msg bad"; msg.textContent = data.error || (isAr ? "فشل بدء الجلسة." : "Failed to start session."); }
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? "🚀 بدء جلسة الحضور" : "🚀 Start Session"; }
+      }
+    }).catch(() => {
+      if (msg) { msg.className = "msg bad"; msg.textContent = isAr ? "حدث خطأ في الاتصال بالسيرفر." : "Connection error."; }
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? "🚀 بدء جلسة الحضور" : "🚀 Start Session"; }
+    });
     return;
   }
 
@@ -2763,13 +2789,24 @@ app.addEventListener("submit", async e => {
     }
 
     saveUsers(users);
+    setStore("cf_cur_user", user);
     msg.className = "msg";
-    msg.textContent = lang === "ar" ? "تم تحديث بياناتك بنجاح! جاري التحديث..." : "Profile updated successfully! Refreshing...";
+    msg.textContent = lang === "ar" ? "⏳ جاري حفظ التعديلات على السيرفر..." : "⏳ Saving to server...";
+
+    // Sync photo + profile to cloud DB
+    try {
+      const patchBody = { id: user.id, phone: user.phone, email: user.email, requesterId: user.id, requesterNid: user.nid };
+      if (editPhotoBase64) patchBody.photo = editPhotoBase64;
+      await fetch('/api/students', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patchBody) });
+    } catch (_) {}
+
+    msg.className = "msg";
+    msg.textContent = lang === "ar" ? "✅ تم تحديث بياناتك بنجاح على السيرفر!" : "✅ Profile updated on server!";
     setTimeout(() => {
       isEditingProfile = false;
       editPhotoBase64 = "";
       render("keep");
-    }, 400);
+    }, 600);
     return;
   }
 
@@ -2992,9 +3029,11 @@ app.addEventListener("input", e => {
         <tr>
           <td>${idx + 1}</td>
           <td>
-            <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:1.5px solid var(--g);background:#fff">
-              <img src="${s.photo || '/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" alt="">
-            </div>
+            <button type="button" class="av-zoom-btn" data-photo="${s.photo || '/assets/images/logo.png'}" data-name="${s.name}" style="background:none;border:none;cursor:pointer;padding:0">
+              <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:2px solid var(--g);background:#fff;transition:transform .15s" title="${isAr?'اضغط لعرض الصورة':'Click to view photo'}">
+                <img src="${s.photo || '/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" alt="${s.name}" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
+              </div>
+            </button>
           </td>
           <td><b>${s.name}</b></td>
           <td><code>${maskNid(s.nid)}</code></td>
@@ -3106,6 +3145,13 @@ async function syncAttendanceWithCloud() {
         const curPath = location.pathname;
         if (curPath === '/admin' || curPath === '/portal') {
           render('keep');
+          // Re-generate member QR after re-render if student is viewing portal
+          if (curPath === '/portal' && localStorage.getItem('cf_role') === 'STUDENT') {
+            const userId = localStorage.getItem('cf_user_id');
+            const user = getUsers().find(u => u.id === userId) || getStore('cf_cur_user', null);
+            const aqr = getStore('cf_active_qr', { active: false, title: '' });
+            if (user && aqr.active) setTimeout(() => generateMemberQr(user, aqr.title), 150);
+          }
         }
       }
     }
@@ -3143,6 +3189,129 @@ async function syncWithCloud(forceRender) {
   syncAttendanceWithCloud();
 }
 
+/* ---------- QR Member Code Generator ---------- */
+let qrScannerActive = false, qrScanStream = null, qrScanAnim = null;
+
+function generateMemberQr(curUser, eventTitle) {
+  const canvas = document.getElementById('member-qr-canvas');
+  if (!canvas) return;
+  if (typeof QRCode === 'undefined') {
+    // Fallback: show text if library not loaded
+    const ctx = canvas.getContext('2d');
+    canvas.width = 200; canvas.height = 200;
+    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,200,200);
+    ctx.fillStyle = '#3B2616'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(curUser.name, 100, 100); ctx.fillText(curUser.nid, 100, 120);
+    return;
+  }
+  const payload = JSON.stringify({ sid: curUser.id, nid: curUser.nid, ev: eventTitle });
+  QRCode.toCanvas(canvas, payload, { width: 200, margin: 1, color: { dark: '#3B2616', light: '#FFFFFF' } }, () => {});
+}
+
+function stopQrScanner() {
+  qrScannerActive = false;
+  if (qrScanAnim) { cancelAnimationFrame(qrScanAnim); qrScanAnim = null; }
+  if (qrScanStream) { qrScanStream.getTracks().forEach(t => t.stop()); qrScanStream = null; }
+  const wrap = document.getElementById('qr-scanner-wrap');
+  if (wrap) wrap.style.display = 'none';
+}
+
+async function startQrScanner() {
+  const wrap = document.getElementById('qr-scanner-wrap');
+  const video = document.getElementById('qr-video');
+  const canvas = document.getElementById('qr-canvas');
+  const statusEl = document.getElementById('qr-scan-status');
+  const msgEl = document.getElementById('admin-scan-msg');
+  if (!wrap || !video || !canvas) return;
+
+  try {
+    qrScanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+    video.srcObject = qrScanStream;
+    await video.play();
+    wrap.style.display = 'block';
+    qrScannerActive = true;
+    if (statusEl) statusEl.textContent = lang === 'ar' ? '🔍 وجّه الكاميرا نحو QR العضو...' : '🔍 Point camera at member QR...';
+
+    const ctx = canvas.getContext('2d');
+    let lastScanned = '', lastScannedTime = 0;
+
+    function scanFrame() {
+      if (!qrScannerActive) return;
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        if (typeof jsQR !== 'undefined') {
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+          if (code && code.data) {
+            const now = Date.now();
+            if (code.data !== lastScanned || now - lastScannedTime > 4000) {
+              lastScanned = code.data;
+              lastScannedTime = now;
+              handleScannedMemberQr(code.data, statusEl, msgEl);
+            }
+          }
+        }
+      }
+      qrScanAnim = requestAnimationFrame(scanFrame);
+    }
+    qrScanAnim = requestAnimationFrame(scanFrame);
+  } catch (err) {
+    if (msgEl) { msgEl.className = 'msg bad'; msgEl.textContent = lang === 'ar' ? '❌ يرجى السماح بالوصول للكاميرا من إعدادات المتصفح.' : '❌ Please allow camera access in browser settings.'; }
+  }
+}
+
+async function handleScannedMemberQr(data, statusEl, msgEl) {
+  try {
+    let payload;
+    try { payload = JSON.parse(data); } catch { return; }
+    if (!payload.sid && !payload.nid) return;
+
+    const activeQr = getStore('cf_active_qr', { active: false, title: '' });
+    if (!activeQr.active) {
+      if (statusEl) statusEl.textContent = lang === 'ar' ? '⚠️ لا توجد جلسة نشطة' : '⚠️ No active session';
+      return;
+    }
+
+    if (statusEl) statusEl.textContent = lang === 'ar' ? '⏳ جاري تسجيل الحضور...' : '⏳ Recording attendance...';
+
+    const curUserId = localStorage.getItem('cf_user_id');
+    const curUser = getStore('cf_cur_user', null) || getUsers().find(u => u.id === curUserId);
+    const res = await fetch('/api/attendance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        studentId: payload.sid || payload.nid,
+        eventTitle: activeQr.title,
+        requesterId: curUser?.id,
+        requesterNid: curUser?.nid
+      })
+    });
+    const result = await res.json();
+    if (result.success) {
+      if (statusEl) statusEl.textContent = '✅ ' + (lang === 'ar' ? 'تم التسجيل!' : 'Recorded!');
+      if (msgEl) { msgEl.className = 'msg'; msgEl.textContent = lang === 'ar' ? `✅ تم تسجيل حضور العضو بنجاح في "${activeQr.title}"!` : `✅ Member attendance recorded for "${activeQr.title}"!`; }
+      setTimeout(() => { if (msgEl) msgEl.textContent = ''; syncWithCloud(); }, 2000);
+    } else {
+      if (statusEl) statusEl.textContent = '⚠️ ' + (result.error || 'Error');
+      if (msgEl) { msgEl.className = 'msg bad'; msgEl.textContent = result.error || (lang === 'ar' ? 'فشل التسجيل.' : 'Recording failed.'); }
+    }
+  } catch (err) {
+    if (statusEl) statusEl.textContent = '❌ ' + (lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error');
+  }
+}
+
 statics(); render(); syncWithCloud();
+// After first render, generate member QR if student is logged in and session is active
+(function() {
+  const role = localStorage.getItem('cf_role');
+  if (role === 'STUDENT') {
+    const userId = localStorage.getItem('cf_user_id');
+    const user = getUsers().find(u => u.id === userId) || getStore('cf_cur_user', null);
+    const aqr = getStore('cf_active_qr', { active: false, title: '' });
+    if (user && aqr.active) setTimeout(() => generateMemberQr(user, aqr.title), 150);
+  }
+})();
 // Auto poll every 3 seconds for real-time live updates from database!
 setInterval(() => { syncWithCloud(); }, 3000);

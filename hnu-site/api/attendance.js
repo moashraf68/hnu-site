@@ -132,8 +132,8 @@ module.exports = async function handler(req, res) {
       // Action A: Set / Activate QR Code
       if (action === 'SET_ACTIVE_QR') {
         const { title, image, requesterId, requesterNid } = body
-        if (!title || !image) {
-          return res.status(400).json({ success: false, error: 'عنوان الفعالية وصورة كود الـ QR مطلوبين.' })
+        if (!title) {
+          return res.status(400).json({ success: false, error: 'عنوان الفعالية مطلوب.' })
         }
 
         const isAdmin = await verifyAdmin(requesterId, requesterNid)
@@ -144,7 +144,7 @@ module.exports = async function handler(req, res) {
         // Upsert into active_qr
         await sql`
           INSERT INTO active_qr (id, title, image, is_active, created_at, updated_at)
-          VALUES ('current', ${title}, ${image}, true, NOW(), NOW())
+          VALUES ('current', ${title}, ${image || ''}, true, NOW(), NOW())
           ON CONFLICT (id) DO UPDATE SET
             title = EXCLUDED.title,
             image = EXCLUDED.image,

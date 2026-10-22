@@ -39,7 +39,7 @@ module.exports = async function handler(req, res) {
           isSuperAdmin: isSuper,
           status: r.status === 'ACTIVE' ? 'نشط' : 'غير نشط',
           photo: r.profile_photo || '/assets/images/logo.png',
-          title: isSuper ? 'المشرف العام (Super Admin)' : (r.role === 'ADMIN' ? 'نائب رئيس لجنة التنظيم (Vice Head of OC)' : 'عضو بالأسرة'),
+          title: isSuper ? 'المشرف العام (Super Admin)' : (r.role === 'ADMIN' ? 'أدمن' : 'عضو بالأسرة'),
           score: Number(r.score) || 0,
           notes: r.notes || '',
           createdAt: r.created_at ? new Date(r.created_at).toISOString().slice(0, 10) : '2026-01-01'
@@ -50,7 +50,7 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === 'PATCH' || req.method === 'POST') {
-      const { id, role, score, notes, requesterId, requesterNid } = req.body || {}
+      const { id, role, score, notes, photo, phone, email, requesterId, requesterNid } = req.body || {}
 
       if (!id) {
         return res.status(400).json({ success: false, error: 'معرف المستخدم مطلوب.' })
@@ -103,6 +103,17 @@ module.exports = async function handler(req, res) {
           SET role = ${role === 'ADMIN' ? 'ADMIN' : 'STUDENT'}, updated_at = NOW()
           WHERE id = ${actualId}
         `
+      }
+
+      // Update profile photo / phone / email — any user can update their own
+      if (req.body.photo !== undefined) {
+        await sql`UPDATE users SET profile_photo = ${photo}, updated_at = NOW() WHERE id = ${actualId}`
+      }
+      if (req.body.phone !== undefined) {
+        await sql`UPDATE users SET phone = ${phone}, updated_at = NOW() WHERE id = ${actualId}`
+      }
+      if (req.body.email !== undefined) {
+        await sql`UPDATE users SET email = ${email}, updated_at = NOW() WHERE id = ${actualId}`
       }
 
       if (score !== undefined) {
