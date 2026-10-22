@@ -196,6 +196,7 @@ const notFound = () => `<section class="sec pg"><div class="wrap narrow cta"><h1
 
 /* ---------- Central Family Portal & Admin ---------- */
 let curAuthMode = "login", curAtab = "overview", studentSearchQuery = "", evalSearchQuery = "", selectedEvalStudentId = "", openedEventArchiveId = "", regPhotoBase64 = "", isEditingProfile = false, editPhotoBase64 = "";
+let memberSortBy = "score_desc", memberFilterCom = "all", memberFilterCollege = "all", memberFilterTier = "all", memberViewMode = "table", biFilterCom = "all", studentSearchTimer = null;
 const getStore = (k, def) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } };
 const setStore = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
@@ -522,98 +523,366 @@ function adminView(curUser, users) {
       ` : ''}
     </div>
 
-    ${curAtab === 'overview' ? `
-      <div class="dash-stats">
-        <div class="dstat"><div class="dstat-val">${users.length}</div><div class="dstat-lbl">${isAr ? 'الأعضاء والمسجلين في النظام' : 'Registered Members'}</div></div>
-        <div class="dstat"><div class="dstat-val">4</div><div class="dstat-lbl">${isAr ? 'اللجان المركزية النشطة (OC, HR, Media, PR)' : 'Active Committees (OC, HR, Media, PR)'}</div></div>
-        <div class="dstat"><div class="dstat-val">${attendances.length}</div><div class="dstat-lbl">${isAr ? 'تسجيلات حضور بالـ QR' : 'QR Attendance Records'}</div></div>
-        <div class="dstat"><div class="dstat-val">${activeQr.active ? (isAr ? 'نشطة' : 'Active') : (isAr ? 'متوقفة' : 'Inactive')}</div><div class="dstat-lbl">${isAr ? 'حالة فعالية الـ QR الحالية' : 'Current QR Status'}</div></div>
-      </div>
-      <div class="admin-card">
-        <div class="admin-card-head"><h3>⚡ ${isAr ? 'لوحة الإدارة — أسرة طلاب من أجل مصر' : 'Admin Dashboard — Students For Egypt'}</h3></div>
-        <p style="color:var(--c2);line-height:1.8">
-          ${isAr 
-            ? `أهلاً بك يا <b>${curUser.name}</b> في لوحة الإدارة المركزية. يمكنك من هنا رفع صورة كود QR لتسجيل حضور الفعاليات وتفعيلها لتظهر لجميع الطلاب، وإيقافها بضغطة زر عند انتهاء الفعالية، ومتابعة تسجيلات حضور الطلاب، وتصدير التقارير وطباعتها، وإدارة الأعضاء وترقيتهم وتقييم أدائهم دورياً.`
-            : `Welcome <b>${curUser.name}</b> to the central admin panel. From here you can upload & activate event QR codes for all students, stop them when events conclude, track live attendance, print official reports, export member records, and manage evaluations.`}
-        </p>
-      </div>
-    ` : ''}
+    ${curAtab === 'overview' ? (() => {
+      // --- Computed analytics data ---
+      const totalMembers = users.length;
+      const memberOnly = users.filter(u => u.role === 'STUDENT');
+      const highPerf = memberOnly.filter(u => (u.score||0) >= 8).length;
+      const medPerf  = memberOnly.filter(u => (u.score||0) >= 5 && (u.score||0) < 8).length;
+      const lowPerf  = memberOnly.filter(u => (u.score||0) < 5).length;
+      const avgScore = memberOnly.length ? (memberOnly.reduce((a,u)=>a+(u.score||0),0)/memberOnly.length).toFixed(1) : '—';
+      const totalEvents = eventsArchive.length + (activeQr.active ? 1 : 0);
 
-    ${curAtab === 'students' ? `
-      <div class="admin-card">
-        <div class="admin-card-head">
-          <div>
-            <h3>${isAr ? 'قائمة الأعضاء والمسجلين' : 'Members Directory'} (${users.length})</h3>
-            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-              <button type="button" class="btn sm" id="btn-sync-cloud-now" style="padding:6px 14px;font-size:.82rem;background:#22c55e;border-color:#22c55e;color:#fff">
-                🔄 ${isAr ? 'تحديث فوري من قاعدة البيانات' : 'Sync Live'}
-              </button>
-              <button type="button" class="btn sm" id="btn-export-students-csv" style="padding:6px 14px;font-size:.82rem">
-                📥 ${isAr ? 'تصدير كشف الأعضاء (Excel / CSV)' : 'Export Members (CSV)'}
-              </button>
-              <button type="button" class="btn sm ghost" id="btn-print-students" style="padding:6px 14px;font-size:.82rem">
-                🖨️ ${isAr ? 'طباعة كشف الأعضاء' : 'Print Directory'}
-              </button>
+      // Committee breakdown
+      const comBreakdown = Object.entries(COMMITTEES_MAP).map(([k,v]) => ({
+        key: k, label: v.split(' ')[0],
+        count: users.filter(u=>u.com===k).length,
+        score: users.filter(u=>u.com===k&&u.role==='STUDENT').length ?
+          (users.filter(u=>u.com===k&&u.role==='STUDENT').reduce((a,u)=>a+(u.score||0),0)/users.filter(u=>u.com===k&&u.role==='STUDENT').length).toFixed(1) : '0'
+      }));
+      const maxComCount = Math.max(...comBreakdown.map(c=>c.count), 1);
+
+      // College breakdown
+      const colBreakdown = COLLEGES.map(c => ({
+        name: c, count: users.filter(u=>u.college===c).length
+      })).filter(c=>c.count>0).sort((a,b)=>b.count-a.count).slice(0,6);
+      const maxColCount = Math.max(...colBreakdown.map(c=>c.count), 1);
+
+      // Year breakdown
+      const yearBreakdown = YEARS.map(y => ({
+        name: y.replace('الفرقة ',''), count: users.filter(u=>u.year===y).length
+      })).filter(y=>y.count>0);
+
+      // Top performers
+      const topMembers = [...memberOnly].sort((a,b)=>(b.score||0)-(a.score||0)).slice(0,3);
+      const attendedIds = new Set(attendances.map(a=>a.studentId||a.user_id));
+      const topAttendees = memberOnly.filter(u=>attendedIds.has(u.id)).length;
+
+      return `
+      <div class="dash-stats">
+        <div class="dstat"><div class="dstat-val">${totalMembers}</div><div class="dstat-lbl">${isAr?'إجمالي الأعضاء المسجلين':'Total Registered Members'}</div></div>
+        <div class="dstat"><div class="dstat-val" style="color:#137333">${highPerf}</div><div class="dstat-lbl">${isAr?'أعضاء ممتازون (8+/10)':'High Performers (8+/10)'}</div></div>
+        <div class="dstat"><div class="dstat-val" style="color:var(--g2)">${avgScore}</div><div class="dstat-lbl">${isAr?'متوسط تقييم الأداء العام':'Average Performance Score'}</div></div>
+        <div class="dstat"><div class="dstat-val">${attendances.length}</div><div class="dstat-lbl">${isAr?'تسجيلات حضور بالـ QR':'QR Attendance Records'}</div></div>
+        <div class="dstat"><div class="dstat-val">${totalEvents}</div><div class="dstat-lbl">${isAr?'إجمالي الفعاليات المسجلة':'Total Events Recorded'}</div></div>
+        <div class="dstat"><div class="dstat-val" style="color:${activeQr.active?'#137333':'var(--c2)'}">${activeQr.active?(isAr?'نشطة':'Active'):(isAr?'متوقفة':'Inactive')}</div><div class="dstat-lbl">${isAr?'حالة جلسة الحضور الحالية':'Current QR Session Status'}</div></div>
+      </div>
+
+      <!-- BI Grid Row 1: Committee Distribution + Score Distribution -->
+      <div class="bi-grid">
+        <div class="bi-card">
+          <div class="bi-card-head">
+            <h4>📊 ${isAr?'توزيع الأعضاء على اللجان':'Members per Committee'}</h4>
+            <span class="sbadge act">${users.length} ${isAr?'عضو':'Members'}</span>
+          </div>
+          <div class="bi-bars-list">
+            ${comBreakdown.map(c=>`
+              <div class="bi-bar-item">
+                <div class="bi-bar-meta">
+                  <span>${c.label}</span>
+                  <span style="color:var(--g2)">${c.count} ${isAr?'عضو':'members'} • متوسط ${c.score}/10</span>
+                </div>
+                <div class="bi-bar-track">
+                  <div class="bi-bar-fill" style="width:${c.count?Math.round(c.count/maxComCount*100):0}%"></div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="bi-card">
+          <div class="bi-card-head">
+            <h4>🎯 ${isAr?'توزيع مستويات الأداء':'Performance Tier Distribution'}</h4>
+            <span class="sbadge pen">${memberOnly.length} ${isAr?'عضو قابل للتقييم':'Evaluable'}</span>
+          </div>
+          <div class="bi-bars-list" style="margin-bottom:18px">
+            ${[
+              {label: isAr?'ممتاز (8-10)':'Excellent (8-10)', count: highPerf, color:'#137333', bg:'#e6f4ea'},
+              {label: isAr?'جيد (5-7.9)':'Good (5-7.9)', count: medPerf, color:'#b45309', bg:'#fef7e0'},
+              {label: isAr?'يحتاج دعم (0-4.9)':'Needs Support (0-4.9)', count: lowPerf, color:'#c5221f', bg:'#fce8e6'}
+            ].map(t=>`
+              <div class="bi-bar-item">
+                <div class="bi-bar-meta">
+                  <span style="color:${t.color};font-weight:800">${t.label}</span>
+                  <span>${t.count} ${isAr?'عضو':'members'} (${memberOnly.length?Math.round(t.count/memberOnly.length*100):0}%)</span>
+                </div>
+                <div class="bi-bar-track" style="height:14px">
+                  <div class="bi-bar-fill" style="width:${memberOnly.length?Math.round(t.count/memberOnly.length*100):0}%;background:${t.color}"></div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          <!-- Mini donut-style visual -->
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+            ${[
+              {label:isAr?'ممتاز':'Excellent', pct: memberOnly.length?Math.round(highPerf/memberOnly.length*100):0, color:'#137333'},
+              {label:isAr?'جيد':'Good', pct: memberOnly.length?Math.round(medPerf/memberOnly.length*100):0, color:'#F59E0B'},
+              {label:isAr?'يحتاج دعم':'Needs Support', pct: memberOnly.length?Math.round(lowPerf/memberOnly.length*100):0, color:'#c5221f'}
+            ].map(t=>`
+              <div style="flex:1;min-width:80px;background:#F9F7F4;border-radius:12px;padding:10px;text-align:center;border:2px solid ${t.color}20">
+                <div style="font-size:1.5rem;font-weight:900;color:${t.color}">${t.pct}%</div>
+                <div style="font-size:.72rem;color:var(--c2);font-weight:700;margin-top:2px">${t.label}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- BI Grid Row 2: College + Year breakdown -->
+      <div class="bi-grid">
+        <div class="bi-card">
+          <div class="bi-card-head">
+            <h4>🏛️ ${isAr?'توزيع الأعضاء على الكليات (Top 6)':'Members by Faculty (Top 6)'}</h4>
+          </div>
+          <div class="bi-bars-list">
+            ${colBreakdown.map((c,i)=>`
+              <div class="bi-bar-item">
+                <div class="bi-bar-meta">
+                  <span style="font-size:.82rem">${c.name}</span>
+                  <span style="color:var(--g2)">${c.count}</span>
+                </div>
+                <div class="bi-bar-track">
+                  <div class="bi-bar-fill" style="width:${Math.round(c.count/maxColCount*100)}%;background:hsl(${30+i*25},70%,${40+i*5}%)"></div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="bi-card">
+          <div class="bi-card-head">
+            <h4>🎓 ${isAr?'توزيع الأعضاء على الفرق الدراسية':'Members by Academic Year'}</h4>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px">
+            ${yearBreakdown.map((y,i)=>`
+              <div style="background:#F9F7F4;border-radius:14px;padding:12px;text-align:center;border:2px solid var(--bei)">
+                <div style="font-size:1.6rem;font-weight:900;color:var(--c1)">${y.count}</div>
+                <div style="font-size:.72rem;color:var(--c2);font-weight:700;margin-top:2px">${y.name}</div>
+              </div>
+            `).join('')}
+          </div>
+
+          <div style="margin-top:20px;border-top:1px solid var(--bei);padding-top:14px">
+            <h4 style="color:var(--c1);font-size:.95rem;margin-bottom:10px">📅 ${isAr?'الحضور في الفعاليات':'Events Attendance'}</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div style="background:var(--bei);border-radius:12px;padding:12px;text-align:center">
+                <div style="font-size:1.5rem;font-weight:900;color:var(--c1)">${eventsArchive.length}</div>
+                <div style="font-size:.75rem;color:var(--c2);font-weight:700">${isAr?'فعاليات مؤرشفة':'Archived Events'}</div>
+              </div>
+              <div style="background:var(--bei);border-radius:12px;padding:12px;text-align:center">
+                <div style="font-size:1.5rem;font-weight:900;color:${activeQr.active?'#137333':'var(--c2)'}">${activeQr.active?'1':'0'}</div>
+                <div style="font-size:.75rem;color:var(--c2);font-weight:700">${isAr?'جلسة نشطة الآن':'Active Session'}</div>
+              </div>
             </div>
           </div>
-          <input type="search" class="search-inp" id="student-search" placeholder="${isAr ? 'بحث بالاسم أو الكلية أو اللجنة...' : 'Search by name, faculty, committee...'}" value="${studentSearchQuery}">
         </div>
+      </div>
+
+      <!-- Podium: Top 3 Performers -->
+      ${topMembers.length >= 1 ? `
+      <div class="admin-card">
+        <div class="admin-card-head">
+          <h3>🏆 ${isAr?'لوحة شرف أفضل المتميزين':'Honor Board — Top Performers'}</h3>
+          <span class="sbadge act">${isAr?'مرتب تنازلياً بالتقييم':'Sorted by Score'}</span>
+        </div>
+        <div class="bi-podium">
+          ${topMembers[1] ? `
+          <div class="bi-podium-step second">
+            <div style="font-size:.75rem;color:#64748B;font-weight:700;margin-bottom:6px">2nd</div>
+            <button type="button" class="av-zoom-btn" data-photo="${topMembers[1].photo||'/assets/images/logo.png'}" data-name="${topMembers[1].name}">
+              <div style="width:56px;height:56px;border-radius:50%;overflow:hidden;border:3px solid #94A3B8;background:#fff;margin-bottom:8px">
+                <img src="${topMembers[1].photo||'/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
+              </div>
+            </button>
+            <div class="bi-medal">🥈</div>
+            <div style="font-weight:800;color:var(--c1);font-size:.88rem;text-align:center;max-width:120px;word-break:break-word">${topMembers[1].name}</div>
+            <div style="font-size:.8rem;color:var(--c2)">${getComName(topMembers[1].com)}</div>
+            <div style="font-size:1.3rem;font-weight:900;color:#64748B;margin-top:6px">${topMembers[1].score||0}/10</div>
+          </div>` : '<div></div>'}
+
+          ${topMembers[0] ? `
+          <div class="bi-podium-step first">
+            <div style="font-size:.75rem;color:#F59E0B;font-weight:800;margin-bottom:6px">1st ⭐</div>
+            <button type="button" class="av-zoom-btn" data-photo="${topMembers[0].photo||'/assets/images/logo.png'}" data-name="${topMembers[0].name}">
+              <div style="width:70px;height:70px;border-radius:50%;overflow:hidden;border:3.5px solid #F59E0B;background:#fff;margin-bottom:8px;box-shadow:0 0 0 4px rgba(245,158,11,.2)">
+                <img src="${topMembers[0].photo||'/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
+              </div>
+            </button>
+            <div class="bi-medal">🥇</div>
+            <div style="font-weight:900;color:var(--c1);font-size:.95rem;text-align:center;max-width:130px;word-break:break-word">${topMembers[0].name}</div>
+            <div style="font-size:.8rem;color:var(--c2)">${getComName(topMembers[0].com)}</div>
+            <div style="font-size:1.6rem;font-weight:900;color:#F59E0B;margin-top:6px">${topMembers[0].score||0}/10</div>
+          </div>` : '<div></div>'}
+
+          ${topMembers[2] ? `
+          <div class="bi-podium-step third">
+            <div style="font-size:.75rem;color:#B45309;font-weight:700;margin-bottom:6px">3rd</div>
+            <button type="button" class="av-zoom-btn" data-photo="${topMembers[2].photo||'/assets/images/logo.png'}" data-name="${topMembers[2].name}">
+              <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:3px solid #B45309;background:#fff;margin-bottom:8px">
+                <img src="${topMembers[2].photo||'/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
+              </div>
+            </button>
+            <div class="bi-medal">🥉</div>
+            <div style="font-weight:800;color:var(--c1);font-size:.88rem;text-align:center;max-width:120px;word-break:break-word">${topMembers[2].name}</div>
+            <div style="font-size:.8rem;color:var(--c2)">${getComName(topMembers[2].com)}</div>
+            <div style="font-size:1.3rem;font-weight:900;color:#B45309;margin-top:6px">${topMembers[2].score||0}/10</div>
+          </div>` : '<div></div>'}
+        </div>
+      </div>
+      ` : ''}
+    `})() : ''}
+
+    ${curAtab === 'students' ? (() => {
+      // -- Sort & filter logic --
+      let displayList = [...users];
+
+      // Filter by committee
+      if (memberFilterCom !== 'all') displayList = displayList.filter(s => s.com === memberFilterCom);
+      // Filter by college
+      if (memberFilterCollege !== 'all') displayList = displayList.filter(s => s.college === memberFilterCollege);
+      // Filter by tier
+      if (memberFilterTier === 'high') displayList = displayList.filter(s => (s.score||0) >= 8);
+      else if (memberFilterTier === 'med') displayList = displayList.filter(s => (s.score||0) >= 5 && (s.score||0) < 8);
+      else if (memberFilterTier === 'low') displayList = displayList.filter(s => s.role === 'STUDENT' && (s.score||0) < 5);
+      else if (memberFilterTier === 'admins') displayList = displayList.filter(s => s.role === 'ADMIN' || s.role === 'SUPER_ADMIN');
+
+      // Search
+      if (studentSearchQuery) displayList = displayList.filter(s =>
+        s.name.toLowerCase().includes(studentSearchQuery.toLowerCase()) ||
+        (s.college && s.college.includes(studentSearchQuery)) ||
+        (s.com && s.com.includes(studentSearchQuery)) ||
+        (s.nid && s.nid.includes(studentSearchQuery))
+      );
+
+      // Sort
+      if (memberSortBy === 'score_desc') displayList.sort((a,b)=>(b.score||0)-(a.score||0));
+      else if (memberSortBy === 'score_asc') displayList.sort((a,b)=>(a.score||0)-(b.score||0));
+      else if (memberSortBy === 'name_asc') displayList.sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+      else if (memberSortBy === 'name_desc') displayList.sort((a,b)=>b.name.localeCompare(a.name,'ar'));
+      else if (memberSortBy === 'newest') displayList.sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
+      else if (memberSortBy === 'oldest') displayList.sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
+
+      const renderMemberRow = (s, idx) => `
+        <tr>
+          <td>${idx+1}</td>
+          <td>
+            <button type="button" class="av-zoom-btn" data-photo="${s.photo||'/assets/images/logo.png'}" data-name="${s.name}" style="background:none;border:none;cursor:pointer;padding:0">
+              <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:2px solid var(--g);background:#fff;transition:transform .15s" title="${isAr?'اضغط لعرض الصورة':'Click to view photo'}">
+                <img src="${s.photo||'/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" alt="${s.name}" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
+              </div>
+            </button>
+          </td>
+          <td><b>${s.name}</b></td>
+          <td><code>${maskNid(s.nid)}</code></td>
+          <td>${getCollegeName(s.college)}</td>
+          <td>${getYearName(s.year)}</td>
+          <td><span class="sbadge" style="background:var(--bei);color:var(--c1)">${getComName(s.com)}</span></td>
+          <td><span class="sbadge ${s.role==='ADMIN'||s.role==='SUPER_ADMIN'?'act':'pen'}">${s.role==='SUPER_ADMIN'?(isAr?'المشرف العام 👑':'Super Admin'):(s.role==='ADMIN'?(isAr?'أدمن':'Admin'):(isAr?'عضو':'Member'))}</span></td>
+          <td>${s.role==='ADMIN'||s.role==='SUPER_ADMIN'?'—':getScoreBadge(s.score||0)}</td>
+          <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            ${s.role!=='ADMIN'&&s.role!=='SUPER_ADMIN'?`<button type="button" class="btn sm" data-eval-std="${s.id}" style="padding:4px 8px;font-size:.78rem">${isAr?'تقييم':'Evaluate'}</button>`:''}
+            ${isSuperAdmin&&s.id!==curUser.id&&s.role!=='SUPER_ADMIN'?`<button type="button" class="btn sm ghost" data-toggle-admin="${s.id}" style="padding:4px 8px;font-size:.78rem;border-color:var(--g)">${s.role==='ADMIN'?(isAr?'سحب الأدمن':'Demote'):(isAr?'تعيين أدمن 👑':'Make Admin')}</button>`:(s.id===curUser.id?`<span style="font-size:.78rem;color:var(--g2);font-weight:700">${isAr?'حسابك':'You'}</span>`:'')}
+            ${isSuperAdmin&&s.role!=='SUPER_ADMIN'&&s.id!==curUser.id?`<button type="button" class="btn sm ghost" data-delete-student="${s.id}" data-student-name="${s.name}" data-student-nid="${s.nid}" style="padding:4px 8px;font-size:.78rem;color:var(--red);border-color:var(--red)">🗑️</button>`:''}
+          </td>
+        </tr>`;
+
+      const renderMemberCard = (s, idx) => `
+        <div class="member-card">
+          <div class="member-card-header">
+            <button type="button" class="av-zoom-btn" data-photo="${s.photo||'/assets/images/logo.png'}" data-name="${s.name}">
+              <div style="width:56px;height:56px;border-radius:50%;overflow:hidden;border:2.5px solid var(--g);background:#fff;flex-shrink:0">
+                <img src="${s.photo||'/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" alt="${s.name}" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
+              </div>
+            </button>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:800;color:var(--c1);font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
+              <div style="font-size:.78rem;color:var(--c2);margin-top:2px">${getCollegeName(s.college)} — ${getYearName(s.year)}</div>
+              <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                <span class="sbadge" style="background:var(--bei);color:var(--c1);font-size:.72rem">${getComName(s.com)}</span>
+                <span class="sbadge ${s.role==='ADMIN'||s.role==='SUPER_ADMIN'?'act':'pen'}" style="font-size:.72rem">${s.role==='SUPER_ADMIN'?'Super Admin 👑':(s.role==='ADMIN'?'Admin':'Member')}</span>
+              </div>
+            </div>
+          </div>
+          <div class="member-card-body">
+            <div style="display:flex;justify-content:space-between;font-size:.78rem">
+              <span><b>${isAr?'الرقم القومي:':'NID:'}</b> <code>${maskNid(s.nid)}</code></span>
+              ${s.phone?`<span><b>${isAr?'الهاتف:':'Phone:'}</b> ${s.phone}</span>`:''}
+            </div>
+            ${s.role!=='ADMIN'&&s.role!=='SUPER_ADMIN'?`<div style="margin-top:8px">${getScoreBadge(s.score||0)}</div>`:''}
+            ${s.notes?`<div style="font-size:.78rem;color:var(--c2);background:var(--bei);border-radius:8px;padding:6px 10px;margin-top:6px;line-height:1.5;white-space:normal"><b>💬 ${isAr?'ملاحظات:':'Notes:'}</b> ${s.notes.slice(0,80)}${s.notes.length>80?'...':''}</div>`:''}
+          </div>
+          <div class="member-card-actions">
+            ${s.role!=='ADMIN'&&s.role!=='SUPER_ADMIN'?`<button type="button" class="btn sm" data-eval-std="${s.id}" style="padding:4px 12px;font-size:.78rem">${isAr?'تقييم':'Evaluate'}</button>`:''}
+            ${isSuperAdmin&&s.id!==curUser.id&&s.role!=='SUPER_ADMIN'?`<button type="button" class="btn sm ghost" data-toggle-admin="${s.id}" style="padding:4px 10px;font-size:.78rem;border-color:var(--g)">${s.role==='ADMIN'?(isAr?'سحب الأدمن':'Demote'):(isAr?'تعيين أدمن 👑':'Make Admin')}</button>`:''}
+            ${isSuperAdmin&&s.role!=='SUPER_ADMIN'&&s.id!==curUser.id?`<button type="button" class="btn sm ghost" data-delete-student="${s.id}" data-student-name="${s.name}" data-student-nid="${s.nid}" style="padding:4px 8px;font-size:.78rem;color:var(--red);border-color:var(--red)">🗑️</button>`:''}
+          </div>
+        </div>`;
+
+      return `
+      <div class="admin-card">
+        <!-- Toolbar -->
+        <div class="dir-toolbar">
+          <div class="dir-filters">
+            <input type="search" class="search-inp" id="student-search" placeholder="${isAr?'بحث بالاسم أو الكلية أو اللجنة...':'Search...'}" value="${studentSearchQuery}" style="min-width:200px">
+            <select class="dir-select" id="dir-sort-select">
+              <option value="score_desc" ${memberSortBy==='score_desc'?'selected':''}>⬇ ${isAr?'التقييم الأعلى':'Highest Score'}</option>
+              <option value="score_asc" ${memberSortBy==='score_asc'?'selected':''}>⬆ ${isAr?'التقييم الأدنى':'Lowest Score'}</option>
+              <option value="name_asc" ${memberSortBy==='name_asc'?'selected':''}>أ—ي ${isAr?'الاسم (أبجدي)':'Name A-Z'}</option>
+              <option value="name_desc" ${memberSortBy==='name_desc'?'selected':''}>ي—أ ${isAr?'الاسم (عكسي)':'Name Z-A'}</option>
+              <option value="newest" ${memberSortBy==='newest'?'selected':''}>🆕 ${isAr?'الأحدث تسجيلاً':'Newest First'}</option>
+              <option value="oldest" ${memberSortBy==='oldest'?'selected':''}>📅 ${isAr?'الأقدم تسجيلاً':'Oldest First'}</option>
+            </select>
+            <select class="dir-select" id="dir-com-filter">
+              <option value="all" ${memberFilterCom==='all'?'selected':''}>🏢 ${isAr?'كل اللجان':'All Committees'}</option>
+              ${Object.entries(COMMITTEES_MAP).map(([k,v])=>`<option value="${k}" ${memberFilterCom===k?'selected':''}>${v.split(' ')[0]}</option>`).join('')}
+            </select>
+            <select class="dir-select" id="dir-tier-filter">
+              <option value="all" ${memberFilterTier==='all'?'selected':''}>🎯 ${isAr?'كل المستويات':'All Tiers'}</option>
+              <option value="high" ${memberFilterTier==='high'?'selected':''}>🟢 ${isAr?'ممتاز (8+)':'Excellent (8+)'}</option>
+              <option value="med" ${memberFilterTier==='med'?'selected':''}>🟡 ${isAr?'جيد (5-7.9)':'Good (5-7.9)'}</option>
+              <option value="low" ${memberFilterTier==='low'?'selected':''}>🔴 ${isAr?'يحتاج دعم (<5)':'Needs Support (<5)'}</option>
+              <option value="admins" ${memberFilterTier==='admins'?'selected':''}>👑 ${isAr?'الأدمن فقط':'Admins Only'}</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:.82rem;color:var(--c2);font-weight:700">${displayList.length} / ${users.length}</span>
+            <div class="view-switcher">
+              <button type="button" class="view-btn ${memberViewMode==='table'?'active':''}" data-view-mode="table">☰ ${isAr?'جدول':'Table'}</button>
+              <button type="button" class="view-btn ${memberViewMode==='cards'?'active':''}" data-view-mode="cards">⊞ ${isAr?'بطاقات':'Cards'}</button>
+            </div>
+            <button type="button" class="btn sm" id="btn-sync-cloud-now" style="padding:6px 14px;font-size:.82rem;background:#22c55e;border-color:#22c55e;color:#fff">🔄</button>
+            <button type="button" class="btn sm" id="btn-export-students-csv" style="padding:6px 14px;font-size:.82rem">📥 CSV</button>
+            <button type="button" class="btn sm ghost" id="btn-print-students" style="padding:6px 14px;font-size:.82rem">🖨️</button>
+          </div>
+        </div>
+
+        ${memberViewMode === 'table' ? `
         <div class="tbl-wrap">
           <table class="atbl">
             <thead>
               <tr>
                 <th>#</th>
-                <th>${isAr ? 'الصورة' : 'Photo'}</th>
-                <th>${isAr ? 'الاسم' : 'Name'}</th>
-                <th>${isAr ? 'الرقم القومي (محمي)' : 'National ID'}</th>
-                <th>${isAr ? 'الكلية' : 'Faculty'}</th>
-                <th>${isAr ? 'الفرقة' : 'Year'}</th>
-                <th>${isAr ? 'اللجنة' : 'Committee'}</th>
-                <th>${isAr ? 'الصلاحية' : 'Role'}</th>
-                <th>${isAr ? 'التقييم' : 'Score'}</th>
-                <th>${isAr ? 'إجراءات' : 'Actions'}</th>
+                <th>${isAr?'الصورة':'Photo'}</th>
+                <th>${isAr?'الاسم':'Name'}</th>
+                <th>${isAr?'الرقم القومي':'NID'}</th>
+                <th>${isAr?'الكلية':'Faculty'}</th>
+                <th>${isAr?'الفرقة':'Year'}</th>
+                <th>${isAr?'اللجنة':'Committee'}</th>
+                <th>${isAr?'الصلاحية':'Role'}</th>
+                <th>${isAr?'التقييم':'Score'}</th>
+                <th>${isAr?'إجراءات':'Actions'}</th>
               </tr>
             </thead>
-            <tbody>
-              ${filteredStudents.map((s, idx) => `
-                <tr>
-                  <td>${idx + 1}</td>
-                  <td>
-                    <button type="button" class="av-zoom-btn" data-photo="${s.photo || '/assets/images/logo.png'}" data-name="${s.name}" style="background:none;border:none;cursor:pointer;padding:0">
-                      <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:2px solid var(--g);background:#fff;transition:transform .15s" title="${isAr?'اضغط لعرض الصورة':'Click to view photo'}">
-                        <img src="${s.photo || '/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" alt="${s.name}" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
-                      </div>
-                    </button>
-                  </td>
-                  <td><b>${s.name}</b></td>
-                  <td><code>${maskNid(s.nid)}</code></td>
-                  <td>${getCollegeName(s.college)}</td>
-                  <td>${getYearName(s.year)}</td>
-                  <td><span class="sbadge" style="background:var(--bei);color:var(--c1)">${getComName(s.com)}</span></td>
-                  <td><span class="sbadge ${s.role === 'ADMIN' || s.role === 'SUPER_ADMIN' ? 'act' : 'pen'}">${s.role === 'SUPER_ADMIN' ? (isAr ? 'المشرف العام 👑' : 'Super Admin') : (s.role === 'ADMIN' ? (isAr ? 'مشرف / أدمن' : 'Admin') : (isAr ? 'عضو' : 'Member'))}</span></td>
-                  <td>${s.role === 'ADMIN' || s.role === 'SUPER_ADMIN' ? '—' : getScoreBadge(s.score || 0)}</td>
-                  <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-                    ${s.role !== 'ADMIN' && s.role !== 'SUPER_ADMIN' ? `
-                      <button type="button" class="btn sm" data-eval-std="${s.id}" style="padding:4px 8px;font-size:.78rem">${isAr ? 'تقييم' : 'Evaluate'}</button>
-                    ` : ''}
-                    ${isSuperAdmin && s.id !== curUser.id && s.role !== 'SUPER_ADMIN' ? `
-                      <button type="button" class="btn sm ghost" data-toggle-admin="${s.id}" style="padding:4px 8px;font-size:.78rem;border-color:var(--g)">
-                        ${s.role === 'ADMIN' ? (isAr ? 'سحب الأدمن ⬇️' : 'Demote') : (isAr ? 'تعيين أدمن 👑' : 'Make Admin')}
-                      </button>
-                    ` : (s.id === curUser.id ? `<span style="font-size:.78rem;color:var(--g2);font-weight:700">${isAr ? 'حسابك الحالي' : 'Current User'}</span>` : '')}
-                    ${isSuperAdmin && s.role !== 'SUPER_ADMIN' && s.id !== curUser.id ? `
-                      <button type="button" class="btn sm ghost" data-delete-student="${s.id}" data-student-name="${s.name}" data-student-nid="${s.nid}" style="padding:4px 8px;font-size:.78rem;color:var(--red);border-color:var(--red)" title="${isAr ? 'حذف العضو نهائياً من قاعدة البيانات' : 'Delete Member Permanently'}">
-                        🗑️ ${isAr ? 'حذف' : 'Delete'}
-                      </button>
-                    ` : ''}
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
+            <tbody>${displayList.map((s,i)=>renderMemberRow(s,i)).join('')}</tbody>
           </table>
         </div>
-      </div>
-    ` : ''}
+        ` : `
+        <div class="members-cards-grid">
+          ${displayList.map((s,i)=>renderMemberCard(s,i)).join('')}
+        </div>
+        `}
+      </div>`;
+    })() : ''}
 
     ${curAtab === 'evals' ? `
       <div class="admin-card">
@@ -1867,6 +2136,14 @@ app.addEventListener("click", async e => {
   }
 
   // Admin Print & Export buttons
+  // Directory view mode switcher
+  const viewModeBtn = e.target.closest("[data-view-mode]");
+  if (viewModeBtn) {
+    memberViewMode = viewModeBtn.dataset.viewMode;
+    render("keep");
+    return;
+  }
+
   if (e.target.closest("#btn-print-attendance")) {
     printAttendanceReport();
     return;
@@ -3125,49 +3402,32 @@ app.addEventListener("input", e => {
   const search = e.target.closest("#student-search");
   if (search) {
     studentSearchQuery = search.value.trim();
-    const tbody = document.querySelector(".atbl tbody");
-    if (tbody) {
-      const users = getUsers();
-      const curUserId = localStorage.getItem("cf_user_id");
-      const curUser = getStore("cf_cur_user", null) || users.find(u => u.id === curUserId);
-      const isSuperAdmin = curUser && (curUser.role === 'SUPER_ADMIN' || curUser.isSuperAdmin === true);
-      const isAr = lang === "ar";
-      const filtered = users.filter(s => !studentSearchQuery || s.name.toLowerCase().includes(studentSearchQuery.toLowerCase()) || s.college.includes(studentSearchQuery) || (s.com && s.com.includes(studentSearchQuery)));
-      tbody.innerHTML = filtered.map((s, idx) => `
-        <tr>
-          <td>${idx + 1}</td>
-          <td>
-            <button type="button" class="av-zoom-btn" data-photo="${s.photo || '/assets/images/logo.png'}" data-name="${s.name}" style="background:none;border:none;cursor:pointer;padding:0">
-              <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:2px solid var(--g);background:#fff;transition:transform .15s" title="${isAr?'اضغط لعرض الصورة':'Click to view photo'}">
-                <img src="${s.photo || '/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" alt="${s.name}" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
-              </div>
-            </button>
-          </td>
-          <td><b>${s.name}</b></td>
-          <td><code>${maskNid(s.nid)}</code></td>
-          <td>${getCollegeName(s.college)}</td>
-          <td>${getYearName(s.year)}</td>
-          <td><span class="sbadge" style="background:var(--bei);color:var(--c1)">${getComName(s.com)}</span></td>
-          <td><span class="sbadge ${s.role === 'ADMIN' || s.role === 'SUPER_ADMIN' ? 'act' : 'pen'}">${s.role === 'SUPER_ADMIN' ? (isAr ? 'المشرف العام 👑' : 'Super Admin') : (s.role === 'ADMIN' ? (isAr ? 'مشرف / أدمن' : 'Admin') : (isAr ? 'عضو' : 'Member'))}</span></td>
-          <td>${s.role === 'ADMIN' || s.role === 'SUPER_ADMIN' ? '—' : getScoreBadge(s.score || 0)}</td>
-          <td style="display:flex;gap:6px;align-items:center">
-            ${s.role !== 'ADMIN' && s.role !== 'SUPER_ADMIN' ? `
-              <button type="button" class="btn sm" data-eval-std="${s.id}" style="padding:4px 10px;font-size:.78rem">${isAr ? 'تقييم' : 'Evaluate'}</button>
-            ` : ''}
-            ${isSuperAdmin && s.id !== curUserId && s.role !== 'SUPER_ADMIN' ? `
-              <button type="button" class="btn sm ghost" data-toggle-admin="${s.id}" style="padding:4px 8px;font-size:.78rem;border-color:var(--g)">
-                ${s.role === 'ADMIN' ? (isAr ? 'سحب الأدمن ⬇️' : 'Demote') : (isAr ? 'تعيين أدمن 👑' : 'Make Admin')}
-              </button>
-            ` : (s.id === curUserId ? `<span style="font-size:.78rem;color:var(--g2);font-weight:700">${isAr ? 'حسابك الحالي' : 'Current User'}</span>` : '')}
-            ${isSuperAdmin && s.role !== 'SUPER_ADMIN' && s.id !== curUserId ? `
-              <button type="button" class="btn sm ghost" data-delete-student="${s.id}" data-student-name="${s.name}" data-student-nid="${s.nid}" style="padding:4px 8px;font-size:.78rem;color:var(--red);border-color:var(--red)" title="${isAr ? 'حذف العضو نهائياً من قاعدة البيانات' : 'Delete Member Permanently'}">
-                🗑️ ${isAr ? 'حذف' : 'Delete'}
-              </button>
-            ` : ''}
-          </td>
-        </tr>
-      `).join('');
+    render("keep");
+    const newInp = document.getElementById("student-search");
+    if (newInp) {
+      newInp.focus();
+      try { newInp.setSelectionRange(search.selectionStart, search.selectionStart); } catch {}
     }
+    return;
+  }
+});
+
+// Directory sort/filter/view controls
+app.addEventListener("change", e => {
+  if (e.target.id === "dir-sort-select") {
+    memberSortBy = e.target.value;
+    render("keep");
+    return;
+  }
+  if (e.target.id === "dir-com-filter") {
+    memberFilterCom = e.target.value;
+    render("keep");
+    return;
+  }
+  if (e.target.id === "dir-tier-filter") {
+    memberFilterTier = e.target.value;
+    render("keep");
+    return;
   }
 });
 
