@@ -1,10 +1,8 @@
 const { getDb } = require('./db')
+const { setCommonHeaders, getSuperAdminNid, normalizeArabicDigits, verifyRequester, sendJson } = require('./helpers')
 
 module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+  setCommonHeaders(res, 'GET,OPTIONS,PATCH,DELETE,POST,PUT')
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end()
@@ -13,6 +11,9 @@ module.exports = async function handler(req, res) {
   const sql = getDb()
 
   try {
+    // -------------------------------------------------------------
+    // 1. GET: Fetch all registered students & evaluations
+    // -------------------------------------------------------------
     if (req.method === 'GET') {
       const result = await sql`
         SELECT u.id, u.national_id, u.full_name, u.email, u.phone, u.college, u.academic_year,
@@ -23,7 +24,7 @@ module.exports = async function handler(req, res) {
         ORDER BY u.created_at DESC
       `
 
-      const superNid = (process.env.SUPER_ADMIN_NID || '').trim()
+      const superNid = getSuperAdminNid()
       const students = result.rows.map(r => {
         const isSuper = (r.role === 'SUPER_ADMIN' || (superNid && r.national_id === superNid))
         return {
@@ -46,57 +47,60 @@ module.exports = async function handler(req, res) {
         }
       })
 
-      return res.status(200).json({ success: true, students })
+      return sendJson(res, 200, { success: true, students })
     }
 
+    // -------------------------------------------------------------
+    // 2. PATCH / POST: Update Profile, Role, or Evaluation
+    // -------------------------------------------------------------
     if (req.method === 'PATCH' || req.method === 'POST') {
       const { id, role, score, notes, photo, phone, email, requesterId, requesterNid } = req.body || {}
 
       if (!id) {
-        return res.status(400).json({ success: false, error: 'معرف المستخدم مطلوب.' })
+        return sendJson(res, 400, { success: false, error: 'معرف المستخدم مطلوب.' })
       }
 
-      const superNid = (process.env.SUPER_ADMIN_NID || '').trim()
+      // Check permissions
+      const auth = await verifyRequester(sql, requesterId, requesterNid)
 
-      // If updating role (promote to ADMIN / demote to STUDENT), strictly verify requester is Super Admin
+      // Role change requires SUPER_ADMIN
       if (role) {
-        let isRequesterSuper = false
-        if (requesterId || requesterNid) {
-          const reqCheck = await sql`
-            SELECT id, role, national_id FROM users
-            WHERE (id::text = ${requesterId || ''} OR national_id = ${requesterNid || ''})
-            LIMIT 1
-          `
-          if (reqCheck.rows.length > 0) {
-            const reqUser = reqCheck.rows[0]
-            isRequesterSuper = (reqUser.role === 'SUPER_ADMIN' || (superNid && reqUser.national_id === superNid))
-          }
-        }
-
-        if (!isRequesterSuper) {
-          return res.status(403).json({
+        if (!auth.isSuperAdmin) {
+          return sendJson(res, 403, {
             success: false,
             error: 'عذراً، صلاحية تعيين وسحب الأدمن مقتصرة حصرياً على المشرف العام (محمد أشرف).'
           })
         }
       }
 
+      // Evaluation (score/notes) requires ADMIN or SUPER_ADMIN
+      if (score !== undefined) {
+        if (!auth.isAdmin) {
+          return sendJson(res, 403, {
+            success: false,
+            error: 'عذراً، تقييم الأعضاء مقتصر على مسؤولي وأدمن الأسرة فقط.'
+          })
+        }
+      }
+
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id))
+      const cleanTarget = normalizeArabicDigits(id)
       
-      // Look up user to get actual UUID id
+      // Look up target user to get actual UUID id
       let uRes
       if (isUuid) {
         uRes = await sql`SELECT id, national_id, role FROM users WHERE id = ${id} LIMIT 1`
       } else {
-        uRes = await sql`SELECT id, national_id, role FROM users WHERE national_id = ${id} LIMIT 1`
+        uRes = await sql`SELECT id, national_id, role FROM users WHERE national_id = ${cleanTarget} LIMIT 1`
       }
 
       if (uRes.rows.length === 0) {
-        return res.status(404).json({ success: false, error: 'المستخدم غير موجود.' })
+        return sendJson(res, 404, { success: false, error: 'المستخدم غير موجود.' })
       }
 
       const actualId = uRes.rows[0].id
 
+      // 1. Update role if requested
       if (role) {
         await sql`
           UPDATE users
@@ -105,128 +109,84 @@ module.exports = async function handler(req, res) {
         `
       }
 
-      // Update profile photo / phone / email — any user can update their own
-      if (req.body.photo !== undefined) {
+      // 2. Update profile fields (photo, phone, email)
+      if (photo !== undefined) {
         await sql`UPDATE users SET profile_photo = ${photo}, updated_at = NOW() WHERE id = ${actualId}`
       }
-      if (req.body.phone !== undefined) {
+      if (phone !== undefined) {
         await sql`UPDATE users SET phone = ${phone}, updated_at = NOW() WHERE id = ${actualId}`
       }
-      if (req.body.email !== undefined) {
+      if (email !== undefined) {
         await sql`UPDATE users SET email = ${email}, updated_at = NOW() WHERE id = ${actualId}`
       }
 
+      // 3. Save evaluation record if score provided
       if (score !== undefined) {
-        // Any admin (SUPER_ADMIN or ADMIN) can evaluate members
-        let isRequesterAdmin = false
-        if (requesterId || requesterNid) {
-          const reqCheck = await sql`
-            SELECT id, role, national_id FROM users
-            WHERE (id::text = ${requesterId || ''} OR national_id = ${requesterNid || ''})
-            LIMIT 1
-          `
-          if (reqCheck.rows.length > 0) {
-            const reqUser = reqCheck.rows[0]
-            isRequesterAdmin = (reqUser.role === 'SUPER_ADMIN' || reqUser.role === 'ADMIN' || (superNid && reqUser.national_id === superNid))
-          }
-        } else {
-          isRequesterAdmin = true
-        }
-
-        if (!isRequesterAdmin) {
-          return res.status(403).json({
-            success: false,
-            error: 'عذراً، صلاحية تقييم الأعضاء مقتصرة على المشرفين والأدمن فقط.'
-          })
-        }
+        const numScore = Math.min(100, Math.max(0, parseInt(score, 10) || 0))
+        const cleanNotes = String(notes || '').trim()
 
         await sql`
-          INSERT INTO evaluations (id, student_id, score, notes, created_at, updated_at)
-          VALUES (gen_random_uuid(), ${actualId}, ${score}, ${notes || null}, NOW(), NOW())
+          INSERT INTO evaluations (student_id, evaluator_id, score, notes, created_at)
+          VALUES (${actualId}, ${auth.user ? auth.user.id : null}, ${numScore}, ${cleanNotes}, NOW())
         `
       }
 
-      return res.status(200).json({ success: true })
+      return sendJson(res, 200, { success: true, message: 'تم تحديث البيانات بنجاح.' })
     }
 
+    // -------------------------------------------------------------
+    // 3. DELETE: Remove student (Super Admin only)
+    // -------------------------------------------------------------
     if (req.method === 'DELETE') {
       const body = req.body || {}
-      const targetIdOrNid = body.id || body.nid || req.query.id || req.query.nid
+      const targetId = body.id || req.query.id
+      const reqId = body.requesterId || req.query.requesterId
+      const reqNid = body.requesterNid || req.query.requesterNid
 
-      if (!targetIdOrNid) {
-        return res.status(400).json({ success: false, error: 'معرف المستخدم أو الرقم القومي مطلوب للحذف.' })
+      if (!targetId) {
+        return sendJson(res, 400, { success: false, error: 'معرف المستخدم مطلوب للحذف.' })
       }
 
-      const superNid = (process.env.SUPER_ADMIN_NID || '').trim()
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(targetIdOrNid))
-
-      // Check if user exists safely without invalid uuid cast
-      let uRes
-      if (isUuid) {
-        uRes = await sql`
-          SELECT id, national_id, role, full_name FROM users
-          WHERE id = ${targetIdOrNid}
-          LIMIT 1
-        `
-      } else {
-        uRes = await sql`
-          SELECT id, national_id, role, full_name FROM users
-          WHERE national_id = ${targetIdOrNid}
-          LIMIT 1
-        `
-      }
-
-      if (uRes.rows.length === 0) {
-        return res.status(404).json({ success: false, error: 'العضو غير موجود في قاعدة البيانات.' })
-      }
-
-      const target = uRes.rows[0]
-
-      // Protect Super Admin from deletion
-      if (target.role === 'SUPER_ADMIN' || (superNid && target.national_id === superNid)) {
-        return res.status(403).json({ success: false, error: 'لا يمكن حذف حساب المشرف العام للنظام.' })
-      }
-
-      // Verify requester is Super Admin
-      const reqId = body.requesterId || req.query.requesterId || ''
-      const reqNid = body.requesterNid || req.query.requesterNid || ''
-      let isRequesterSuper = false
-      if (reqId || reqNid) {
-        const reqCheck = await sql`
-          SELECT id, role, national_id FROM users
-          WHERE (id::text = ${reqId} OR national_id = ${reqNid})
-          LIMIT 1
-        `
-        if (reqCheck.rows.length > 0) {
-          const reqUser = reqCheck.rows[0]
-          isRequesterSuper = (reqUser.role === 'SUPER_ADMIN' || (superNid && reqUser.national_id === superNid))
-        }
-      }
-
-      if (!isRequesterSuper) {
-        return res.status(403).json({
+      const auth = await verifyRequester(sql, reqId, reqNid)
+      if (!auth.isSuperAdmin) {
+        return sendJson(res, 403, {
           success: false,
           error: 'عذراً، صلاحية حذف الأعضاء مقتصرة حصرياً على المشرف العام (محمد أشرف).'
         })
       }
 
-      const actualId = target.id
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(targetId))
+      const cleanTarget = normalizeArabicDigits(targetId)
 
-      // Delete all related data completely (as if they never entered)
-      await sql`DELETE FROM attendance WHERE user_id = ${actualId}`
-      await sql`DELETE FROM evaluations WHERE student_id = ${actualId}`
-      await sql`DELETE FROM sessions WHERE user_id = ${actualId}`
-      await sql`DELETE FROM users WHERE id = ${actualId}`
+      let uCheck
+      if (isUuid) {
+        uCheck = await sql`SELECT id, national_id, role FROM users WHERE id = ${targetId} LIMIT 1`
+      } else {
+        uCheck = await sql`SELECT id, national_id, role FROM users WHERE national_id = ${cleanTarget} LIMIT 1`
+      }
 
-      return res.status(200).json({
-        success: true,
-        message: `تم حذف العضو (${target.full_name}) وكافة بياناته وسجلاته نهائياً من قاعدة البيانات.`
-      })
+      if (uCheck.rows.length === 0) {
+        return sendJson(res, 404, { success: false, error: 'المستخدم غير موجود.' })
+      }
+
+      const row = uCheck.rows[0]
+      const superNid = getSuperAdminNid()
+
+      if (row.role === 'SUPER_ADMIN' || row.national_id === superNid) {
+        return sendJson(res, 403, { success: false, error: 'لا يمكن حذف حساب المشرف العام.' })
+      }
+
+      // Delete evaluations, attendance, then user
+      await sql`DELETE FROM evaluations WHERE student_id = ${row.id}`
+      await sql`DELETE FROM attendance_records WHERE student_id = ${row.id}`
+      await sql`DELETE FROM users WHERE id = ${row.id}`
+
+      return sendJson(res, 200, { success: true, message: 'تم حذف العضو وسجلاته بنجاح.' })
     }
 
-    return res.status(405).json({ success: false, error: 'طريقة غير مدعومة.' })
+    return sendJson(res, 405, { success: false, error: 'طريقة غير مدعومة.' })
   } catch (err) {
     console.error('Students API error:', err)
-    return res.status(500).json({ success: false, error: err.message || 'خطأ في الخادم.' })
+    return sendJson(res, 500, { success: false, error: err.message || 'خطأ في الخادم.' })
   }
 }

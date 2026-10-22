@@ -1,3 +1,17 @@
+/* =========================================================================
+ * أسرة طلاب من أجل مصر — جامعة حلوان الأهلية
+ * Modular Bundle: Generated from src/
+ * Total Modules: 10
+ * Generated: 2026-10-22T22:18:29.908Z
+ * ========================================================================= */
+
+
+/* >>> MODULE: 01_utils.js <<< */
+/**
+ * 01_utils.js - Utilities, formatters, audio and video helpers
+ * Part of HNU Students For Egypt Platform
+ */
+
 /* أسرة طلاب من أجل مصر — Client-side router + views. كل البيانات من config.js */
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const C = CONFIG, app = $("#app");
@@ -104,6 +118,13 @@ function saveGalleryItems(items) {
   try { localStorage.setItem("cf_gallery", JSON.stringify(items)); } catch {}
 }
 
+
+/* >>> MODULE: 02_landing.js <<< */
+/**
+ * 02_landing.js - Public Landing Page Views (Hero, About, Leaders, Committees)
+ * Part of HNU Students For Egypt Platform
+ */
+
 function homeView() {
   const A = C.about, L = C.leadership;
   return `
@@ -193,6 +214,13 @@ function committeeView(k) {
   </div></article>`;
 }
 const notFound = () => `<section class="sec pg"><div class="wrap narrow cta"><h1 class="h2">404</h1><h2>${S("nf_t")}</h2><p>${S("nf_d")}</p><a href="/" data-link class="btn">${S("home")}</a></div></section>`;
+
+
+/* >>> MODULE: 03_state.js <<< */
+/**
+ * 03_state.js - Global State, Store accessors, Metric calculations
+ * Part of HNU Students For Egypt Platform
+ */
 
 /* ---------- Central Family Portal & Admin ---------- */
 let curAuthMode = "login", curAtab = "overview", studentSearchQuery = "", evalSearchQuery = "", selectedEvalStudentId = "", openedEventArchiveId = "", regPhotoBase64 = "", isEditingProfile = false, editPhotoBase64 = "";
@@ -477,6 +505,13 @@ function registerFormHtml() {
     </div>
   `;
 }
+
+
+/* >>> MODULE: 04_admin.js <<< */
+/**
+ * 04_admin.js - Admin Dashboard Views (Power BI, Members Directory, QR Session)
+ * Part of HNU Students For Egypt Platform
+ */
 
 function adminView(curUser, users) {
   const isAr = lang === "ar";
@@ -1355,6 +1390,13 @@ function adminView(curUser, users) {
   </div>`;
 }
 
+
+/* >>> MODULE: 05_portal.js <<< */
+/**
+ * 05_portal.js - Student Member Portal Views & Authentication Forms
+ * Part of HNU Students For Egypt Platform
+ */
+
 function studentView(curUser) {
   const isAr = lang === "ar";
   const activeQr = getStore("cf_active_qr", { active: false, title: "", image: "" });
@@ -1571,6 +1613,13 @@ function studentView(curUser) {
     </div>
   </div></section>`;
 }
+
+
+/* >>> MODULE: 06_router.js <<< */
+/**
+ * 06_router.js - Client-side Router (render), Observers & Lightbox
+ * Part of HNU Students For Egypt Platform
+ */
 
 /* ---------- Router + transitions ---------- */
 function resolve() {
@@ -1842,6 +1891,13 @@ app.addEventListener("submit", async ev => {
   }
 });
 
+
+/* >>> MODULE: 07_reports.js <<< */
+/**
+ * 07_reports.js - Export to CSV, Print Reports, Photo Lightbox
+ * Part of HNU Students For Egypt Platform
+ */
+
 /* ---------- Print & Export Helpers ---------- */
 function printAttendanceReport() {
   const isAr = lang === "ar";
@@ -2107,6 +2163,13 @@ function printArchivedEventSheet(eventId) {
   `);
   printWin.document.close();
 }
+
+
+/* >>> MODULE: 08_events.js <<< */
+/**
+ * 08_events.js - Delegated Event Listeners & Interactive UI Wiring
+ * Part of HNU Students For Egypt Platform
+ */
 
 /* ---------- Portal & Admin event handlers ---------- */
 app.addEventListener("click", async e => {
@@ -3557,6 +3620,13 @@ async function syncWithCloud(forceRender) {
   syncAttendanceWithCloud();
 }
 
+
+/* >>> MODULE: 09_scanner.js <<< */
+/**
+ * 09_scanner.js - Member QR Generator & Camera Scanner Engine
+ * Part of HNU Students For Egypt Platform
+ */
+
 /* ---------- QR Member Code Generator ---------- */
 let qrScannerActive = false, qrScanStream = null, qrScanAnim = null;
 
@@ -3746,6 +3816,13 @@ async function handleScannedMemberQr(data, statusEl, msgEl) {
   }
 }
 
+
+/* >>> MODULE: 10_bootstrap.js <<< */
+/**
+ * 10_bootstrap.js - Application Bootstrap & Cloud Polling
+ * Part of HNU Students For Egypt Platform
+ */
+
 statics(); render(); syncWithCloud();
 // After first render, generate member QR if student is logged in
 (function() {
@@ -3758,3 +3835,4 @@ statics(); render(); syncWithCloud();
 })();
 // Auto poll every 3 seconds for real-time live updates from database!
 setInterval(() => { syncWithCloud(); }, 3000);
+

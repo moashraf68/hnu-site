@@ -1,4 +1,5 @@
 const { getDb } = require('./db')
+const { setCommonHeaders, verifyRequester, sendJson } = require('./helpers')
 
 const DEFAULT_GALLERY_FILES = [
   "/assets/images/gallery-1.jpg",
@@ -14,10 +15,7 @@ const DEFAULT_GALLERY_FILES = [
 ]
 
 module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST,DELETE')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+  setCommonHeaders(res, 'GET,OPTIONS,POST,DELETE')
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end()
@@ -37,6 +35,7 @@ module.exports = async function handler(req, res) {
       )
     `
 
+    // 1. GET: List all media items
     if (req.method === 'GET') {
       let result = await sql`
         SELECT id, url, type, title, created_at
@@ -67,83 +66,54 @@ module.exports = async function handler(req, res) {
         createdAt: r.created_at ? new Date(r.created_at).toISOString().slice(0, 10) : ''
       }))
 
-      return res.status(200).json({ success: true, items })
+      return sendJson(res, 200, { success: true, items })
     }
 
+    // 2. POST: Add item (Super Admin only)
     if (req.method === 'POST') {
       const { url, type, title, requesterId, requesterNid } = req.body || {}
 
       if (!url) {
-        return res.status(400).json({ success: false, error: 'رابط الصورة أو الفيديو مطلوب.' })
+        return sendJson(res, 400, { success: false, error: 'رابط الصورة أو الفيديو مطلوب.' })
       }
 
-      // Verify requester is Super Admin
-      const superNid = (process.env.SUPER_ADMIN_NID || '').trim()
-      let isSuper = false
-
-      if (requesterId || requesterNid) {
-        const reqCheck = await sql`
-          SELECT id, role, national_id FROM users
-          WHERE (id::text = ${requesterId || ''} OR national_id = ${requesterNid || ''})
-          LIMIT 1
-        `
-        if (reqCheck.rows.length > 0) {
-          const reqUser = reqCheck.rows[0]
-          isSuper = (reqUser.role === 'SUPER_ADMIN' || (superNid && reqUser.national_id === superNid))
-        }
-      }
-
-      if (!isSuper) {
-        return res.status(403).json({
+      const { isSuperAdmin } = await verifyRequester(sql, requesterId, requesterNid)
+      if (!isSuperAdmin) {
+        return sendJson(res, 403, {
           success: false,
           error: 'عذراً، صلاحية إضافة وسائط للمعرض مقتصرة حصرياً على المشرف العام (محمد أشرف).'
         })
       }
 
       const mediaType = (type || 'IMAGE').toUpperCase()
-
       const insertRes = await sql`
         INSERT INTO gallery (id, url, type, title, created_at)
         VALUES (gen_random_uuid(), ${url}, ${mediaType}, ${title || null}, NOW())
         RETURNING id, url, type, title, created_at
       `
 
-      return res.status(200).json({
+      return sendJson(res, 200, {
         success: true,
         message: 'تمت إضافة العنصر إلى المعرض بنجاح!',
         item: insertRes.rows[0]
       })
     }
 
+    // 3. DELETE: Remove item (Super Admin only)
     if (req.method === 'DELETE') {
       const body = req.body || {}
       const targetId = body.id || req.query.id
       const targetUrl = body.url || req.query.url
-      const reqId = body.requesterId || req.query.requesterId || ''
-      const reqNid = body.requesterNid || req.query.requesterNid || ''
+      const reqId = body.requesterId || req.query.requesterId
+      const reqNid = body.requesterNid || req.query.requesterNid
 
       if (!targetId && !targetUrl) {
-        return res.status(400).json({ success: false, error: 'معرف العنصر أو رابطه مطلوب للحذف.' })
+        return sendJson(res, 400, { success: false, error: 'معرف العنصر أو رابطه مطلوب للحذف.' })
       }
 
-      // Verify requester is Super Admin
-      const superNid = (process.env.SUPER_ADMIN_NID || '').trim()
-      let isSuper = false
-
-      if (reqId || reqNid) {
-        const reqCheck = await sql`
-          SELECT id, role, national_id FROM users
-          WHERE (id::text = ${reqId} OR national_id = ${reqNid})
-          LIMIT 1
-        `
-        if (reqCheck.rows.length > 0) {
-          const reqUser = reqCheck.rows[0]
-          isSuper = (reqUser.role === 'SUPER_ADMIN' || (superNid && reqUser.national_id === superNid))
-        }
-      }
-
-      if (!isSuper) {
-        return res.status(403).json({
+      const { isSuperAdmin } = await verifyRequester(sql, reqId, reqNid)
+      if (!isSuperAdmin) {
+        return sendJson(res, 403, {
           success: false,
           error: 'عذراً، صلاحية حذف عناصر المعرض مقتصرة حصرياً على المشرف العام (محمد أشرف).'
         })
@@ -160,15 +130,15 @@ module.exports = async function handler(req, res) {
         await sql`DELETE FROM gallery WHERE url = ${targetUrl}`
       }
 
-      return res.status(200).json({
+      return sendJson(res, 200, {
         success: true,
         message: 'تم حذف العنصر بنجاح من المعرض وقاعدة البيانات.'
       })
     }
 
-    return res.status(405).json({ success: false, error: 'طريقة غير مدعومة.' })
+    return sendJson(res, 405, { success: false, error: 'طريقة غير مدعومة.' })
   } catch (err) {
     console.error('Gallery API error:', err)
-    return res.status(500).json({ success: false, error: err.message || 'خطأ في الخادم.' })
+    return sendJson(res, 500, { success: false, error: err.message || 'خطأ في الخادم.' })
   }
 }

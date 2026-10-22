@@ -1,10 +1,8 @@
 const { getDb } = require('./db')
+const { setCommonHeaders, verifyRequester, sendJson } = require('./helpers')
 
 module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST,DELETE')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+  setCommonHeaders(res, 'GET,OPTIONS,POST,DELETE')
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end()
@@ -37,26 +35,10 @@ module.exports = async function handler(req, res) {
       )
     `
 
-    // Helper: verify admin requester
-    const verifyAdmin = async (reqId, reqNid) => {
-      const superNid = (process.env.SUPER_ADMIN_NID || '30601121400292').trim()
-      if (reqNid === superNid || reqId === superNid) return true
-      if (reqId || reqNid) {
-        const u = await sql`
-          SELECT role, national_id FROM users
-          WHERE (id::text = ${reqId || ''} OR national_id = ${reqNid || ''})
-          LIMIT 1
-        `
-        if (u.rows.length > 0) {
-          const r = u.rows[0]
-          return (r.role === 'ADMIN' || r.role === 'SUPER_ADMIN' || (superNid && r.national_id === superNid))
-        }
-      }
-      return false
-    }
-
+    // -------------------------------------------------------------
+    // 2. GET: Attendance State, Live Attendees, and Archives
+    // -------------------------------------------------------------
     if (req.method === 'GET') {
-      // 1. Get Active QR State
       const qrRes = await sql`
         SELECT title, image, is_active, created_at, updated_at
         FROM active_qr
@@ -70,79 +52,84 @@ module.exports = async function handler(req, res) {
           active: !!qrRow.is_active,
           title: qrRow.title || '',
           image: qrRow.image || '',
-          createdAt: qrRow.created_at ? new Date(qrRow.created_at).toLocaleTimeString('ar-EG') : ''
+          createdAt: qrRow.created_at ? new Date(qrRow.created_at).toLocaleString('ar-EG') : ''
         }
       }
 
-      // 2. Get Live Attendance Records
+      // Live attendance records
       const attRes = await sql`
         SELECT a.id, a.event_id, a.user_id, a.scanned_at,
-               u.full_name, u.national_id, u.college, u.academic_year, u.committee_id, u.phone, u.profile_photo,
-               e.title_ar as event_title
+               u.full_name, u.national_id, u.college, u.academic_year, u.committee_id, u.profile_photo,
+               e.title_ar AS event_title
         FROM attendance a
-        JOIN users u ON a.user_id = u.id
+        LEFT JOIN users u ON a.user_id = u.id
         LEFT JOIN events e ON a.event_id = e.id
         ORDER BY a.scanned_at DESC
       `
 
-      const attendances = attRes.rows.map(r => ({
+      const attendees = attRes.rows.map(r => ({
         id: r.id,
-        eventId: r.event_id,
         studentId: r.user_id,
-        studentName: r.full_name,
-        nid: r.national_id,
-        college: r.college,
-        year: r.academic_year,
-        committee: r.committee_id,
-        phone: r.phone,
+        name: r.full_name || 'عضو غير مسجل',
+        nid: r.national_id || '',
+        college: r.college || '',
+        year: r.academic_year || '',
+        com: r.committee_id || '',
         photo: r.profile_photo || '/assets/images/logo.png',
-        event: r.event_title || 'فعالية عامة',
-        scannedAt: r.scanned_at,
-        time: r.scanned_at ? new Date(r.scanned_at).toLocaleTimeString('ar-EG') : '11:00 ص',
-        date: r.scanned_at ? new Date(r.scanned_at).toLocaleDateString('ar-EG') : '2026-10-19'
+        eventTitle: r.event_title || activeQr.title || 'فعالية عامة',
+        scannedAt: r.scanned_at ? new Date(r.scanned_at).toISOString() : new Date().toISOString()
       }))
 
-      // 3. Get Archived Events
+      // Archives
       const archRes = await sql`
         SELECT id, title, event_date, event_time, total_attendees, attendees_json, created_at
         FROM events_archive
         ORDER BY created_at DESC
       `
 
-      const archivedEvents = archRes.rows.map(r => ({
-        id: r.id,
-        title: r.title,
-        date: r.event_date || (r.created_at ? new Date(r.created_at).toLocaleDateString('ar-EG') : ''),
-        time: r.event_time || (r.created_at ? new Date(r.created_at).toLocaleTimeString('ar-EG') : ''),
-        totalAttendees: r.total_attendees || (Array.isArray(r.attendees_json) ? r.attendees_json.length : 0),
-        attendees: Array.isArray(r.attendees_json) ? r.attendees_json : []
-      }))
+      const archives = archRes.rows.map(r => {
+        let attJson = []
+        try {
+          attJson = typeof r.attendees_json === 'string' ? JSON.parse(r.attendees_json) : (r.attendees_json || [])
+        } catch (_) {}
+        return {
+          id: r.id,
+          title: r.title,
+          date: r.event_date || (r.created_at ? new Date(r.created_at).toLocaleDateString('ar-EG') : ''),
+          time: r.event_time || '',
+          total: r.total_attendees || attJson.length,
+          attendees: attJson
+        }
+      })
 
-      return res.status(200).json({
+      return sendJson(res, 200, {
         success: true,
         activeQr,
-        attendances,
-        archivedEvents
+        attendees,
+        archives,
+        totalLiveAttendees: attendees.length
       })
     }
 
+    // -------------------------------------------------------------
+    // 3. POST: Actions (SET_ACTIVE_QR, STOP_QR, or RECORD_ATTENDANCE)
+    // -------------------------------------------------------------
     if (req.method === 'POST') {
       const body = req.body || {}
-      const action = (body.action || req.query.action || '').toUpperCase()
+      const action = body.action || 'RECORD_ATTENDANCE'
 
-      // Action A: Set / Activate QR Code
+      // Action A: Start or Update QR Session
       if (action === 'SET_ACTIVE_QR') {
         const { title, image, requesterId, requesterNid } = body
         if (!title) {
-          return res.status(400).json({ success: false, error: 'عنوان الفعالية مطلوب.' })
+          return sendJson(res, 400, { success: false, error: 'عنوان الفعالية مطلوب لتفعيل الـ QR.' })
         }
 
-        const isAdmin = await verifyAdmin(requesterId, requesterNid)
-        if (!isAdmin) {
-          return res.status(403).json({ success: false, error: 'غير مصرح: تفعيل كود الـ QR مقتصر على مسؤولي الأسرة.' })
+        const auth = await verifyRequester(sql, requesterId, requesterNid)
+        if (!auth.isAdmin) {
+          return sendJson(res, 403, { success: false, error: 'غير مصرح: تفعيل كود الـ QR مقتصر على مسؤولي الأسرة.' })
         }
 
-        // Upsert into active_qr
         await sql`
           INSERT INTO active_qr (id, title, image, is_active, created_at, updated_at)
           VALUES ('current', ${title}, ${image || ''}, true, NOW(), NOW())
@@ -154,42 +141,29 @@ module.exports = async function handler(req, res) {
             updated_at = NOW()
         `
 
-        // Also ensure an active event row exists in events table
         await sql`
           INSERT INTO events (id, title_ar, title_en, date, qr_token, is_active, created_at)
           SELECT gen_random_uuid(), ${title}, ${title}, NOW(), gen_random_uuid(), true, NOW()
           WHERE NOT EXISTS (SELECT 1 FROM events WHERE title_ar = ${title})
         `
 
-        return res.status(200).json({
+        return sendJson(res, 200, {
           success: true,
           message: 'تم تفعيل كود الـ QR ونشره لجميع الطلاب على السيرفر بنجاح!'
         })
       }
 
-      // Action B: Stop / Deactivate QR Code & Archive
+      // Action B: Stop Session & Archive
       if (action === 'STOP_QR') {
         const { requesterId, requesterNid, archiveData } = body
-        const isAdmin = await verifyAdmin(requesterId, requesterNid)
-        if (!isAdmin) {
-          return res.status(403).json({ success: false, error: 'غير مصرح: إيقاف كود الـ QR مقتصر على مسؤولي الأسرة.' })
+        const auth = await verifyRequester(sql, requesterId, requesterNid)
+        if (!auth.isAdmin) {
+          return sendJson(res, 403, { success: false, error: 'غير مصرح: إيقاف كود الـ QR مقتصر على مسؤولي الأسرة.' })
         }
 
-        // Deactivate active_qr
-        await sql`
-          UPDATE active_qr
-          SET is_active = false, updated_at = NOW()
-          WHERE id = 'current'
-        `
+        await sql`UPDATE active_qr SET is_active = false, updated_at = NOW() WHERE id = 'current'`
+        await sql`UPDATE events SET is_active = false WHERE is_active = true`
 
-        // Deactivate active events
-        await sql`
-          UPDATE events
-          SET is_active = false
-          WHERE is_active = true
-        `
-
-        // If archiveData provided, save into events_archive
         if (archiveData && archiveData.title) {
           const attendeesList = Array.isArray(archiveData.attendees) ? archiveData.attendees : []
           await sql`
@@ -206,16 +180,16 @@ module.exports = async function handler(req, res) {
           `
         }
 
-        return res.status(200).json({
+        return sendJson(res, 200, {
           success: true,
           message: 'تم إنهاء الفعالية وإيقاف كود الـ QR وأرشفة السجلات بنجاح.'
         })
       }
 
-      // Action C: Record Member Attendance (Default)
+      // Action C: Record Attendance (Camera QR Scan)
       const { studentId, eventTitle } = body
       if (!studentId) {
-        return res.status(400).json({ success: false, error: 'معرف الطالب مطلوب.' })
+        return sendJson(res, 400, { success: false, error: 'معرف الطالب مطلوب.' })
       }
 
       const title = eventTitle || 'فعالية عامة'
@@ -236,14 +210,13 @@ module.exports = async function handler(req, res) {
         eventId = eventResult.rows[0].id
       }
 
-      // Find user id (could be id or nid)
       const uRes = await sql`
         SELECT id, full_name, national_id FROM users
         WHERE id::text = ${studentId} OR national_id = ${studentId}
         LIMIT 1
       `
       if (uRes.rows.length === 0) {
-        return res.status(404).json({
+        return sendJson(res, 404, {
           success: false,
           error: 'هذا الرمز غير مسجل لأي طالب في قاعدة بيانات الأسرة.'
         })
@@ -258,7 +231,7 @@ module.exports = async function handler(req, res) {
         LIMIT 1
       `
       if (checkAtt.rows.length > 0) {
-        return res.status(200).json({
+        return sendJson(res, 200, {
           success: true,
           alreadyRecorded: true,
           studentName: actualUserName,
@@ -273,7 +246,7 @@ module.exports = async function handler(req, res) {
         VALUES (gen_random_uuid(), ${eventId}, ${actualUserId}, NOW())
       `
 
-      return res.status(200).json({
+      return sendJson(res, 200, {
         success: true,
         alreadyRecorded: false,
         studentName: actualUserName,
@@ -281,6 +254,9 @@ module.exports = async function handler(req, res) {
       })
     }
 
+    // -------------------------------------------------------------
+    // 4. DELETE: Remove Archive or Clear Attendance
+    // -------------------------------------------------------------
     if (req.method === 'DELETE') {
       const body = req.body || {}
       const targetId = body.id || req.query.id
@@ -289,49 +265,44 @@ module.exports = async function handler(req, res) {
       const reqId = body.requesterId || req.query.requesterId
       const reqNid = body.requesterNid || req.query.requesterNid
 
-      const isAdmin = await verifyAdmin(reqId, reqNid)
-      if (!isAdmin) {
-        return res.status(403).json({ success: false, error: 'غير مصرح: هذا الإجراء للمسؤولين فقط.' })
+      const auth = await verifyRequester(sql, reqId, reqNid)
+      if (!auth.isAdmin) {
+        return sendJson(res, 403, { success: false, error: 'غير مصرح: هذا الإجراء للمسؤولين فقط.' })
       }
 
-      // 1. Delete Archived Event sheet from events_archive
       if (archiveId) {
         await sql`
           DELETE FROM events_archive
-          WHERE id::text = ${archiveId}
-             OR id::text = ${archiveId.replace(/^ev-/, '')}
+          WHERE id::text = ${archiveId} OR id::text = ${archiveId.replace(/^ev-/, '')}
         `
-        return res.status(200).json({ success: true, message: 'تم حذف كشف الفعالية نهائياً من الأرشيف السحابي.' })
+        return sendJson(res, 200, { success: true, message: 'تم حذف كشف الفعالية نهائياً من الأرشيف السحابي.' })
       }
 
-      // 2. Delete by ID: check events_archive first, then attendance
       if (targetId) {
         const delArch = await sql`
           DELETE FROM events_archive
-          WHERE id::text = ${targetId}
-             OR id::text = ${targetId.replace(/^ev-/, '')}
+          WHERE id::text = ${targetId} OR id::text = ${targetId.replace(/^ev-/, '')}
           RETURNING id
         `
         if (delArch.rows.length > 0) {
-          return res.status(200).json({ success: true, message: 'تم حذف الفعالية نهائياً من الأرشيف.' })
+          return sendJson(res, 200, { success: true, message: 'تم حذف الفعالية نهائياً من الأرشيف.' })
         }
 
         await sql`DELETE FROM attendance WHERE id::text = ${targetId}`
-        return res.status(200).json({ success: true, message: 'تم حذف سجل الحضور.' })
+        return sendJson(res, 200, { success: true, message: 'تم حذف سجل الحضور.' })
       }
 
-      // 3. Clear all live attendances
       if (clearAll === 'true') {
         await sql`DELETE FROM attendance`
-        return res.status(200).json({ success: true, message: 'تم مسح سجلات الحضور.' })
+        return sendJson(res, 200, { success: true, message: 'تم مسح سجلات الحضور.' })
       }
 
-      return res.status(400).json({ success: false, error: 'معرف السجل أو كشف الفعالية مطلوب للحذف.' })
+      return sendJson(res, 400, { success: false, error: 'معرف السجل أو كشف الفعالية مطلوب للحذف.' })
     }
 
-    return res.status(405).json({ success: false, error: 'طريقة غير مدعومة.' })
+    return sendJson(res, 405, { success: false, error: 'طريقة غير مدعومة.' })
   } catch (err) {
     console.error('Attendance API error:', err)
-    return res.status(500).json({ success: false, error: err.message || 'خطأ في الخادم.' })
+    return sendJson(res, 500, { success: false, error: err.message || 'خطأ في الخادم.' })
   }
 }

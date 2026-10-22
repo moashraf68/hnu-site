@@ -1,13 +1,9 @@
 const bcrypt = require('bcryptjs')
 const { getDb } = require('./db')
+const { setCommonHeaders, getSuperAdminNid, normalizeArabicDigits, sendJson } = require('./helpers')
 
 module.exports = async function handler(req, res) {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Credentials', true)
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT')
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version')
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+  setCommonHeaders(res, 'GET,OPTIONS,POST')
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end()
@@ -17,18 +13,17 @@ module.exports = async function handler(req, res) {
   const sql = getDb()
 
   try {
+    // -------------------------------------------------------------
+    // 1. ACTION: LOGIN
+    // -------------------------------------------------------------
     if (action === 'login') {
       const { nid, pw } = req.body || {}
       if (!nid || !pw) {
-        return res.status(400).json({ success: false, error: 'الرقم القومي وكلمة المرور مطلوبان.' })
+        return sendJson(res, 400, { success: false, error: 'الرقم القومي وكلمة المرور مطلوبان.' })
       }
 
-      const rawNid = String(nid || '').trim()
-      const cleanNid = rawNid
-        .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
-        .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
-
-      const superNid = (process.env.SUPER_ADMIN_NID || '30601121400292').trim()
+      const cleanNid = normalizeArabicDigits(nid)
+      const superNid = getSuperAdminNid()
 
       const result = await sql`
         SELECT id, national_id, password_hash, full_name, email, phone, college, academic_year, committee_id, role, status, profile_photo
@@ -41,7 +36,7 @@ module.exports = async function handler(req, res) {
       `
 
       if (result.rows.length === 0) {
-        return res.status(401).json({ success: false, error: 'الرقم القومي أو كلمة المرور غير صحيحة.' })
+        return sendJson(res, 401, { success: false, error: 'الرقم القومي أو كلمة المرور غير صحيحة.' })
       }
 
       const row = result.rows[0]
@@ -55,11 +50,12 @@ module.exports = async function handler(req, res) {
 
       const isSuperAdmin = row.role === 'SUPER_ADMIN' || (superNid && row.national_id === superNid) || (row.full_name && row.full_name.includes('أشرف'))
 
-      // Support designated Super Admin password: if isSuperAdmin and pw is 1212005Mo, guarantee match and update hash in DB
-      if (!isMatch && isSuperAdmin && (pw === '1212005Mo' || pw === '1212005mo')) {
+      // Support Super Admin initial password fallback if hash was not updated
+      const superAdminPwFallback = process.env.SUPER_ADMIN_PASSWORD || '1212005Mo'
+      if (!isMatch && isSuperAdmin && (pw === superAdminPwFallback || pw.toLowerCase() === superAdminPwFallback.toLowerCase())) {
         isMatch = true
         try {
-          const newHash = await bcrypt.hash('1212005Mo', 10)
+          const newHash = await bcrypt.hash(superAdminPwFallback, 10)
           await sql`UPDATE users SET password_hash = ${newHash}, role = 'SUPER_ADMIN', updated_at = NOW() WHERE id = ${row.id}`
           row.password_hash = newHash
           row.role = 'SUPER_ADMIN'
@@ -69,7 +65,7 @@ module.exports = async function handler(req, res) {
       }
 
       if (!isMatch) {
-        return res.status(401).json({ success: false, error: 'الرقم القومي أو كلمة المرور غير صحيحة.' })
+        return sendJson(res, 401, { success: false, error: 'الرقم القومي أو كلمة المرور غير صحيحة.' })
       }
 
       if (isSuperAdmin && row.role !== 'SUPER_ADMIN') {
@@ -97,39 +93,26 @@ module.exports = async function handler(req, res) {
         title: isSuperAdmin ? 'المشرف العام (Super Admin)' : (row.role === 'ADMIN' ? 'أدمن' : 'عضو بالأسرة')
       }
 
-      return res.status(200).json({ success: true, user: userObj })
+      return sendJson(res, 200, { success: true, user: userObj })
     }
 
-    if (action === 'set_admin_password') {
-      const { secret, nid, newPw } = req.body || {}
-      if (secret !== 'hnu-admin-reset-2026') {
-        return res.status(403).json({ success: false, error: 'Unauthorized' })
-      }
-      const targetNid = nid || '30601121400292'
-      const targetPw = newPw || '1212005Mo'
-      const salt = await bcrypt.genSalt(10)
-      const hash = await bcrypt.hash(targetPw, salt)
-      const updateRes = await sql`
-        UPDATE users 
-        SET password_hash = ${hash}, role = 'SUPER_ADMIN', updated_at = NOW() 
-        WHERE national_id = ${targetNid} OR full_name LIKE '%أشرف%'
-        RETURNING id, national_id, full_name, role
-      `
-      return res.status(200).json({ success: true, updated: updateRes.rows })
-    }
-
+    // -------------------------------------------------------------
+    // 2. ACTION: REGISTER (New Member Sign-Up)
+    // -------------------------------------------------------------
     if (action === 'register') {
       const { fullName, nid, pw, phone, email, college, year, com, photo } = req.body || {}
       if (!fullName || !nid || !pw || !college || !year) {
-        return res.status(400).json({ success: false, error: 'يرجى استيفاء جميع الحقول الإلزامية.' })
+        return sendJson(res, 400, { success: false, error: 'يرجى استيفاء جميع الحقول الإلزامية.' })
       }
+
+      const cleanNid = normalizeArabicDigits(nid)
 
       // Check if already registered
       const existing = await sql`
-        SELECT id FROM users WHERE national_id = ${nid} LIMIT 1
+        SELECT id FROM users WHERE national_id = ${cleanNid} LIMIT 1
       `
       if (existing.rows.length > 0) {
-        return res.status(409).json({ success: false, error: 'الرقم القومي مسجل بالفعل في النظام.' })
+        return sendJson(res, 409, { success: false, error: 'الرقم القومي مسجل بالفعل في النظام.' })
       }
 
       const salt = await bcrypt.genSalt(10)
@@ -142,7 +125,7 @@ module.exports = async function handler(req, res) {
           college, academic_year, committee_id, role, status, profile_photo, created_at, updated_at
         ) VALUES (
           gen_random_uuid(),
-          ${nid},
+          ${cleanNid},
           ${hash},
           ${fullName},
           ${email || null},
@@ -175,12 +158,12 @@ module.exports = async function handler(req, res) {
         score: 0
       }
 
-      return res.status(200).json({ success: true, user: userObj })
+      return sendJson(res, 200, { success: true, user: userObj })
     }
 
-    return res.status(400).json({ success: false, error: 'إجراء غير مدعوم.' })
+    return sendJson(res, 400, { success: false, error: 'إجراء غير مدعوم.' })
   } catch (err) {
-    console.error('Auth error:', err)
-    return res.status(500).json({ success: false, error: err.message || 'خطأ في الخادم.' })
+    console.error('Auth API error:', err)
+    return sendJson(res, 500, { success: false, error: err.message || 'خطأ في الخادم.' })
   }
 }
