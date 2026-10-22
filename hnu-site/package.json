@@ -2,7 +2,7 @@
   "name": "hnu-for-egypt",
   "private": true,
   "scripts": {
-    "build": "node build.js",
+    "bundle": "node build.js",
     "start": "npx serve -s . -l 3000"
   },
   "dependencies": {
