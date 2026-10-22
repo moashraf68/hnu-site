@@ -1,4 +1,4 @@
-import { sql } from '@vercel/postgres';
+import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
 
 export default async function handler(req, res) {
@@ -13,6 +13,7 @@ export default async function handler(req, res) {
   try {
     const hashed = await bcrypt.hash(newPassword, 10);
     const role = targetRole || 'SUPER_ADMIN';
+    const sql = neon(process.env.POSTGRES_URL);
     
     const result = await sql`
       UPDATE users SET password = ${hashed} 
@@ -22,7 +23,7 @@ export default async function handler(req, res) {
     
     return res.status(200).json({ 
       success: true, 
-      updated: result.rows.map(r => ({ name: r.name, role: r.role }))
+      updated: result.map(r => ({ name: r.name, role: r.role }))
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
