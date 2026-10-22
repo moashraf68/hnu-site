@@ -15,12 +15,12 @@ export default async function handler(req, res) {
     const result = await sql`
       UPDATE users SET password = ${hashedPassword} 
       WHERE role = ${role}
-      RETURNING name, role
+      RETURNING full_name, role
     `;
     
     return res.status(200).json({ 
       success: true, 
-      updated: result.map(r => ({ name: r.name, role: r.role }))
+      updated: result.map(r => ({ name: r.full_name, role: r.role }))
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
