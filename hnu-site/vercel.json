@@ -1,6 +1,9 @@
 {
   "framework": null,
   "buildCommand": null,
+  "alias": [
+    "for-egypt-hnu.vercel.app"
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/((?!api|assets|.*\\..*).*)", "destination": "/index.html" }
