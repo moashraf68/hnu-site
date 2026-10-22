@@ -143,6 +143,8 @@ footer nav{display:flex;flex-wrap:wrap;gap:4px 16px;justify-content:center}foote
 .lb img{max-width:min(92vw,1100px);max-height:82vh;border-radius:14px;border:3px solid var(--g);transform:scale(.94);transition:transform .25s;object-fit:contain}.lb.show img{transform:none}
 .lb button{position:absolute;background:rgba(59,38,22,.85);color:var(--g3);border:1px solid var(--g);width:48px;height:48px;border-radius:50%;font-size:1.5rem;cursor:pointer;transition:.2s}.lb button:hover{background:var(--g);color:var(--c1)}
 .lb-x{top:max(16px,env(safe-area-inset-top));inset-inline-end:16px}.lb-n{top:50%;transform:translateY(-50%)}.lb-n.prev{inset-inline-start:10px}.lb-n.next{inset-inline-end:10px}[dir=rtl] .lb-n{scale:-1 1}
+.lb-action-btn{position:absolute;top:max(16px,env(safe-area-inset-top));inset-inline-start:16px;background:rgba(59,38,22,.85);color:var(--g3);border:1px solid var(--g);width:48px;height:48px;border-radius:50%;font-size:1.35rem;cursor:pointer;transition:.2s;display:grid;place-items:center;text-decoration:none;z-index:206}
+.lb-action-btn:hover{background:var(--g);color:var(--c1);transform:scale(1.08)}
 .av-zoom-btn{background:none;border:none;cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center;transition:transform .18s ease;border-radius:50%}
 .av-zoom-btn:hover{transform:scale(1.18);filter:brightness(1.08)}
 .av-zoom-btn:active{transform:scale(.92)}

@@ -1465,6 +1465,8 @@ function openLb(i, el) {
   if (lbi) lbi.style.cssText = "";
   const tEl = document.getElementById("lb-title");
   if (tEl) tEl.style.display = "none";
+  const openTabBtn = document.getElementById("lb-open-tab");
+  if (openTabBtn) openTabBtn.style.display = "none";
   showLb(idx);
   lb.hidden = false;
   requestAnimationFrame(() => lb.classList.add("show"));
@@ -1477,7 +1479,8 @@ function openMemberPhoto(photo, name) {
   lbi.src = photo;
   lbi.alt = name || "";
   lbi.onerror = () => { lbi.src = '/assets/images/logo.png'; };
-  lbi.style.cssText = "max-width:min(90vw, 420px);max-height:min(75vh, 420px);border-radius:20px;object-fit:cover;border:3.5px solid var(--g);box-shadow:0 16px 48px rgba(0,0,0,.75);background:#fff";
+  // Cinematic large display (up to 880px / 84vh) with native aspect ratio
+  lbi.style.cssText = "max-width:min(94vw, 880px);max-height:84vh;width:auto;height:auto;border-radius:18px;object-fit:contain;border:3.5px solid var(--g);box-shadow:0 24px 80px rgba(0,0,0,.92);background:rgba(20,10,4,.96);image-rendering:-webkit-optimize-contrast";
   // Hide prev/next gallery buttons
   $$(".lb-n", lb).forEach(btn => btn.style.display = "none");
   const tEl = document.getElementById("lb-title");
@@ -1488,6 +1491,11 @@ function openMemberPhoto(photo, name) {
     } else {
       tEl.style.display = "none";
     }
+  }
+  const openTabBtn = document.getElementById("lb-open-tab");
+  if (openTabBtn) {
+    openTabBtn.href = photo;
+    openTabBtn.style.display = "grid";
   }
   lb.hidden = false;
   requestAnimationFrame(() => lb.classList.add("show"));
@@ -1507,6 +1515,8 @@ function closeLb() {
     $$(".lb-n", lb).forEach(btn => btn.style.display = "");
     const tEl = document.getElementById("lb-title");
     if (tEl) tEl.style.display = "none";
+    const openTabBtn = document.getElementById("lb-open-tab");
+    if (openTabBtn) openTabBtn.style.display = "none";
     opener && opener.focus();
   }, reduce.matches ? 0 : 200);
 }
@@ -2405,7 +2415,7 @@ app.addEventListener("click", async e => {
   }
 });
 
-function compressAndResizeImage(file, maxDim, callback) {
+function compressAndResizeImage(file, maxDim, callback, quality = 0.90) {
   const reader = new FileReader();
   reader.onload = function(e) {
     const img = new Image();
@@ -2420,8 +2430,10 @@ function compressAndResizeImage(file, maxDim, callback) {
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext("2d");
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
       ctx.drawImage(img, 0, 0, w, h);
-      callback(canvas.toDataURL("image/jpeg", 0.75));
+      callback(canvas.toDataURL("image/jpeg", quality));
     };
     img.onerror = function() { callback("/assets/images/logo.png"); };
     img.src = e.target.result;
@@ -2435,22 +2447,22 @@ app.addEventListener("change", e => {
   if (e.target.id === "photo-file-input") {
     const file = e.target.files && e.target.files[0];
     if (file) {
-      compressAndResizeImage(file, 240, base64 => {
+      compressAndResizeImage(file, 1080, base64 => {
         regPhotoBase64 = base64;
         const box = $("#photo-preview-box");
         if (box) box.innerHTML = `<img src="${regPhotoBase64}" alt="Preview" style="width:100%;height:100%;object-fit:cover">`;
-      });
+      }, 0.90);
     }
   }
 
   if (e.target.id === "edit-photo-file-input") {
     const file = e.target.files && e.target.files[0];
     if (file) {
-      compressAndResizeImage(file, 240, base64 => {
+      compressAndResizeImage(file, 1080, base64 => {
         editPhotoBase64 = base64;
         const box = $("#edit-photo-preview-box");
         if (box) box.innerHTML = `<img src="${editPhotoBase64}" alt="Preview" style="width:100%;height:100%;object-fit:cover">`;
-      });
+      }, 0.90);
     }
   }
 
