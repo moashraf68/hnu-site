@@ -496,9 +496,11 @@ function adminView(curUser, users) {
   return `<div class="admin-wrap">
     <div class="admin-bar">
       <div class="admin-bar-user">
-        <div class="admin-av">
-          <img src="${curUser.photo}" alt="${curUser.name}" onerror="this.onerror=null;this.parentElement.textContent='👑'">
-        </div>
+        <button type="button" class="av-zoom-btn" data-photo="${curUser.photo || '/assets/images/logo.png'}" data-name="${curUser.name}" title="${isAr ? 'عرض صورتك الشخصية' : 'View profile photo'}">
+          <div class="admin-av">
+            <img src="${curUser.photo || '/assets/images/logo.png'}" alt="${curUser.name}" onerror="this.onerror=null;this.parentElement.textContent='👑'">
+          </div>
+        </button>
         <div>
           <h2>${curUser.name}</h2>
           <p>${curUser.title} — ${getCollegeName(curUser.college)}</p>
@@ -644,9 +646,11 @@ function adminView(curUser, users) {
           <!-- Active Evaluation Card -->
           <div style="background:#fff;border:2px solid var(--g);border-radius:20px;padding:22px;box-shadow:var(--sh);margin-bottom:24px">
             <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;border-bottom:1.5px solid var(--bei);padding-bottom:16px;margin-bottom:18px">
-              <div class="admin-av" style="width:64px;height:64px;flex-shrink:0">
-                <img src="${selectedMember.photo || '/assets/images/logo.png'}" alt="${selectedMember.name}" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
-              </div>
+              <button type="button" class="av-zoom-btn" data-photo="${selectedMember.photo || '/assets/images/logo.png'}" data-name="${selectedMember.name}" title="${isAr ? 'اضغط لتكبير صورة العضو' : 'Click to view photo'}" style="flex-shrink:0">
+                <div class="admin-av" style="width:64px;height:64px">
+                  <img src="${selectedMember.photo || '/assets/images/logo.png'}" alt="${selectedMember.name}" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
+                </div>
+              </button>
               <div style="flex:1;min-width:200px">
                 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                   <h3 style="color:var(--c1);margin:0;font-size:1.25rem">${selectedMember.name}</h3>
@@ -696,9 +700,11 @@ function adminView(curUser, users) {
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
             ${filteredEvalMembers.map(s => `
               <div class="eval-member-card" data-select-eval-std="${s.id}" style="display:flex;align-items:center;gap:12px;background:#fff;border:1.5px solid ${s.id === (selectedMember && selectedMember.id) ? 'var(--g)' : 'var(--bei)'};border-radius:14px;padding:12px;cursor:pointer;transition:.2s;box-shadow:${s.id === (selectedMember && selectedMember.id) ? '0 0 12px rgba(242,168,29,.35)' : 'none'}">
-                <div style="width:46px;height:46px;border-radius:50%;overflow:hidden;border:2px solid var(--g);background:#fff;flex-shrink:0">
-                  <img src="${s.photo || '/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" alt="${s.name}" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
-                </div>
+                <button type="button" class="av-zoom-btn" data-photo="${s.photo || '/assets/images/logo.png'}" data-name="${s.name}" title="${isAr ? 'اضغط لتكبير صورة العضو' : 'Click to view photo'}" style="flex-shrink:0">
+                  <div style="width:46px;height:46px;border-radius:50%;overflow:hidden;border:2px solid var(--g);background:#fff">
+                    <img src="${s.photo || '/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" alt="${s.name}" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
+                  </div>
+                </button>
                 <div style="flex:1;min-width:0">
                   <div style="font-weight:700;color:var(--c1);font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
                   <div style="font-size:.78rem;color:var(--c2)"><code>${s.nid}</code></div>
@@ -804,7 +810,11 @@ function adminView(curUser, users) {
                       <td>${i + 1}</td>
                       <td>
                         <div style="display:flex;align-items:center;gap:8px">
-                          <img src="${a.photo || '/assets/images/logo.png'}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid var(--g)" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
+                          <button type="button" class="av-zoom-btn" data-photo="${a.photo || '/assets/images/logo.png'}" data-name="${a.studentName}" title="${isAr ? 'اضغط لتكبير الصورة' : 'Click to zoom'}">
+                            <div style="width:30px;height:30px;border-radius:50%;overflow:hidden;border:1.5px solid var(--g);background:#fff">
+                              <img src="${a.photo || '/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" alt="${a.studentName}" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
+                            </div>
+                          </button>
                           <b>${a.studentName}</b>
                         </div>
                       </td>
@@ -887,7 +897,11 @@ function adminView(curUser, users) {
                               <td>${i + 1}</td>
                               <td>
                                 <div style="display:flex;align-items:center;gap:8px">
-                                  <img src="${att.photo || '/assets/images/logo.png'}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid var(--g)" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
+                                  <button type="button" class="av-zoom-btn" data-photo="${att.photo || '/assets/images/logo.png'}" data-name="${att.studentName}" title="${isAr ? 'اضغط لتكبير الصورة' : 'Click to zoom'}">
+                                    <div style="width:30px;height:30px;border-radius:50%;overflow:hidden;border:1.5px solid var(--g);background:#fff">
+                                      <img src="${att.photo || '/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" alt="${att.studentName}" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
+                                    </div>
+                                  </button>
                                   <b>${att.studentName}</b>
                                 </div>
                               </td>
@@ -1083,9 +1097,11 @@ function studentView(curUser) {
     <!-- Top Member Header -->
     <div class="admin-bar">
       <div class="admin-bar-user">
-        <div class="admin-av">
-          <img src="${curUser.photo || '/assets/images/logo.png'}" alt="${curUser.name}" onerror="this.onerror=null;this.parentElement.textContent='🎓'">
-        </div>
+        <button type="button" class="av-zoom-btn" data-photo="${curUser.photo || '/assets/images/logo.png'}" data-name="${curUser.name}" title="${isAr ? 'عرض صورتك الشخصية' : 'View profile photo'}">
+          <div class="admin-av">
+            <img src="${curUser.photo || '/assets/images/logo.png'}" alt="${curUser.name}" onerror="this.onerror=null;this.parentElement.textContent='🎓'">
+          </div>
+        </button>
         <div>
           <h2>${isAr ? 'أهلاً بك يا ' + curUser.name : 'Welcome, ' + curUser.name}</h2>
           <p>${getCollegeName(curUser.college)} — ${getYearName(curUser.year)} • ${getComName(curUser.com)}</p>
@@ -1440,9 +1456,60 @@ function count(b) {
 /* ---------- Lightbox ---------- */
 const lb = $("#lb"), lbi = $("#lb-img"); let cur = 0, opener = null;
 const okImgs = () => $$(".gi").filter(g => g.querySelector("img"));
-function showLb(i) { const a = okImgs(); cur = (i + a.length) % a.length; const im = a[cur].querySelector("img"); lbi.src = im.currentSrc || im.src; lbi.alt = im.alt; }
-function openLb(i, el) { const a = okImgs(), idx = a.indexOf(el); if (idx < 0) return; opener = el; showLb(idx); lb.hidden = false; requestAnimationFrame(() => lb.classList.add("show")); document.body.style.overflow = "hidden"; $(".lb-x").focus(); }
-function closeLb() { lb.classList.remove("show"); setTimeout(() => { lb.hidden = true; document.body.style.overflow = ""; opener && opener.focus(); }, reduce.matches ? 0 : 200); }
+function showLb(i) { const a = okImgs(); if (!a.length) return; cur = (i + a.length) % a.length; const im = a[cur].querySelector("img"); lbi.src = im.currentSrc || im.src; lbi.alt = im.alt; }
+function openLb(i, el) {
+  const a = okImgs(), idx = a.indexOf(el);
+  if (idx < 0) return;
+  opener = el;
+  $$(".lb-n", lb).forEach(btn => btn.style.display = "");
+  if (lbi) lbi.style.cssText = "";
+  const tEl = document.getElementById("lb-title");
+  if (tEl) tEl.style.display = "none";
+  showLb(idx);
+  lb.hidden = false;
+  requestAnimationFrame(() => lb.classList.add("show"));
+  document.body.style.overflow = "hidden";
+  $(".lb-x").focus();
+}
+function openMemberPhoto(photo, name) {
+  if (!lb || !lbi) return;
+  opener = document.activeElement;
+  lbi.src = photo;
+  lbi.alt = name || "";
+  lbi.onerror = () => { lbi.src = '/assets/images/logo.png'; };
+  lbi.style.cssText = "max-width:min(90vw, 420px);max-height:min(75vh, 420px);border-radius:20px;object-fit:cover;border:3.5px solid var(--g);box-shadow:0 16px 48px rgba(0,0,0,.75);background:#fff";
+  // Hide prev/next gallery buttons
+  $$(".lb-n", lb).forEach(btn => btn.style.display = "none");
+  const tEl = document.getElementById("lb-title");
+  if (tEl) {
+    if (name) {
+      tEl.textContent = name;
+      tEl.style.display = "block";
+    } else {
+      tEl.style.display = "none";
+    }
+  }
+  lb.hidden = false;
+  requestAnimationFrame(() => lb.classList.add("show"));
+  document.body.style.overflow = "hidden";
+  const closeBtn = $(".lb-x");
+  if (closeBtn) closeBtn.focus();
+}
+function closeLb() {
+  lb.classList.remove("show");
+  setTimeout(() => {
+    lb.hidden = true;
+    document.body.style.overflow = "";
+    if (lbi) {
+      lbi.style.cssText = "";
+      lbi.onerror = null;
+    }
+    $$(".lb-n", lb).forEach(btn => btn.style.display = "");
+    const tEl = document.getElementById("lb-title");
+    if (tEl) tEl.style.display = "none";
+    opener && opener.focus();
+  }, reduce.matches ? 0 : 200);
+}
 lb.addEventListener("click", e => { const a = e.target.dataset.lb; if (a === "x" || e.target === lb) closeLb(); else if (a === "n") showLb(cur + 1); else if (a === "p") showLb(cur - 1); });
 addEventListener("keydown", e => {
   if (lb.hidden) return;
@@ -1807,19 +1874,15 @@ app.addEventListener("click", async e => {
     return;
   }
 
-  // Photo zoom for admin — show member photo in lightbox
+  // Photo zoom for admin & members — show member photo in lightbox
   const avZoom = e.target.closest(".av-zoom-btn");
   if (avZoom) {
-    const photo = avZoom.dataset.photo;
-    const name = avZoom.dataset.name;
-    const lbEl = document.getElementById("lb");
-    const lbImg = document.getElementById("lb-img");
-    if (lbEl && lbImg && photo) {
-      lbImg.src = photo;
-      lbImg.alt = name || "";
-      lbImg.style.cssText = "max-width:320px;max-height:320px;border-radius:50%;object-fit:cover;border:4px solid var(--g2)";
-      lbEl.removeAttribute("hidden");
-      lbEl.focus();
+    e.preventDefault();
+    e.stopPropagation();
+    const photo = avZoom.dataset.photo || avZoom.querySelector("img")?.src;
+    const name = avZoom.dataset.name || avZoom.querySelector("img")?.alt || "";
+    if (photo) {
+      openMemberPhoto(photo, name);
     }
     return;
   }
