@@ -366,7 +366,7 @@ function loginFormHtml() {
 
     <form class="form" id="unified-login-form">
       <label>${isAr ? 'الرقم القومي (14 رقماً)' : 'National ID (14 digits)'}
-        <input name="nid" pattern="[0-9]{14}" placeholder="${isAr ? 'أدخل الرقم القومي المكون من 14 رقماً...' : 'Enter your 14-digit National ID...'}" required autocomplete="username">
+        <input name="nid" placeholder="${isAr ? 'أدخل الرقم القومي (14 رقماً)...' : 'Enter your 14-digit National ID...'}" required autocomplete="username">
       </label>
       <label>${isAr ? 'كلمة المرور' : 'Password'}
         <div class="pw-wrap">
@@ -1354,7 +1354,7 @@ function statics() {
   const navLoginBtn = $(".nav-login");
   if (navLoginBtn) {
     const role = localStorage.getItem("cf_role");
-    if (role === "ADMIN") {
+    if (role === "ADMIN" || role === "SUPER_ADMIN") {
       navLoginBtn.textContent = lang === "ar" ? "👑 لوحة الإدارة" : "👑 Admin Panel";
       navLoginBtn.href = "/admin";
     } else if (role === "STUDENT") {
@@ -2447,8 +2447,9 @@ app.addEventListener("submit", async e => {
       return;
     }
 
-    const nid = loginForm.nid.value.trim();
+    let nid = loginForm.nid.value.trim();
     const pw = loginForm.pw.value.trim();
+    nid = nid.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
 
     if (submitBtn) {
       submitBtn.disabled = true;
@@ -2459,6 +2460,7 @@ app.addEventListener("submit", async e => {
     msg.textContent = isAr ? "جاري تسجيل الدخول..." : "Signing in...";
 
     let authenticatedUser = null;
+    let serverError = "";
 
     // 1. Try Remote Cloud Database API first
     try {
@@ -2470,6 +2472,8 @@ app.addEventListener("submit", async e => {
       const data = await res.json();
       if (data.success && data.user) {
         authenticatedUser = data.user;
+      } else if (data.error) {
+        serverError = data.error;
       }
     } catch (apiErr) {
       console.warn('Remote auth notice:', apiErr);
@@ -2493,11 +2497,13 @@ app.addEventListener("submit", async e => {
       else users.unshift(authenticatedUser);
       saveUsers(users);
 
+      setStore("cf_cur_user", authenticatedUser);
       localStorage.setItem("cf_role", authenticatedUser.role);
       localStorage.setItem("cf_user_id", authenticatedUser.id);
       localStorage.setItem("cf_user_name", authenticatedUser.name);
       setTimeout(() => {
-        history.replaceState(null, "", authenticatedUser.role === "ADMIN" ? "/admin" : "/portal");
+        const isAdmin = authenticatedUser.role === "ADMIN" || authenticatedUser.role === "SUPER_ADMIN" || authenticatedUser.isSuperAdmin;
+        history.replaceState(null, "", isAdmin ? "/admin" : "/portal");
         render();
       }, 350);
     } else {
@@ -2533,9 +2539,9 @@ app.addEventListener("submit", async e => {
       } else {
         const remaining = 5 - loginAttempts;
         msg.className = "msg bad";
-        msg.textContent = isAr 
-          ? `الرقم القومي أو كلمة المرور غير صحيحة. (محاولات متبقية قبل القفل: ${remaining})`
-          : `Invalid National ID or password. (${remaining} attempts left)`;
+        msg.textContent = (serverError ? serverError + " " : (isAr ? "الرقم القومي أو كلمة المرور غير صحيحة. " : "Invalid National ID or password. ")) + (isAr 
+          ? `(محاولات متبقية قبل القفل: ${remaining})`
+          : `(${remaining} attempts left)`);
       }
     }
     return;
