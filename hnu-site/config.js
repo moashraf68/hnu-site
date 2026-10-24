@@ -31,7 +31,7 @@ const CONFIG = {
     supervisor: { name: "Dr. Mohamed Helmy", photo: "/assets/images/supervisor.jpg", title: { ar: "رائد الأسرة", en: "Supervisor" } },
     bigBrother: { name: "Hassan El-Gendy", photo: "/assets/images/big-brother.jpg", title: { ar: "الأخ الأكبر", en: "Big Brother" }, bioKey: "hassan" },
     viceBigBrother: { name: "Omar Abdelazem", photo: "/assets/images/vice-big-brother.jpg", title: { ar: "نائب الأخ الأكبر", en: "Vice Big Brother" }, bioKey: "omar" },
-    headOfCommittees: { name: "Mostafa El-Sherif", photo: "/assets/images/mostafa-elsherif.jpg", title: { ar: "هيد اللجان (Head of Committees)", en: "Head of Committees" }, bioKey: "mostafa" }
+    headOfCommittees: { name: "Mostafa El-Sherif", photo: "/assets/images/mostafa-elsherif.jpg", title: { ar: "مسؤول اللجان", en: "Head of Committees" }, bioKey: "mostafa" }
   },
   /* ===== بيانات السير الذاتية للقادة — يتم تحديثها لاحقاً ===== */
   bios: {
@@ -58,7 +58,7 @@ const CONFIG = {
       title: { ar: "مسؤول اللجان — أسرة طلاب من أجل مصر HNU", en: "Head of Committees — For Egypt Family HNU" },
       photo: "/assets/images/mostafa-elsherif.jpg",
       quote: { ar: "«قريباً»", en: "«Coming Soon»" },
-      tags: { ar: ["هيد اللجان", "قيادة"], en: ["Head of Committees", "Leadership"] },
+      tags: { ar: ["مسؤول اللجان", "قيادة"], en: ["Head of Committees", "Leadership"] },
       achievements: { ar: ["قريباً — سيتم إضافة الإنجازات"], en: ["Coming Soon"] },
       about: { ar: "سيتم إضافة السيرة الذاتية قريباً.", en: "Bio coming soon." }
     },
@@ -82,10 +82,10 @@ const CONFIG = {
     },
     ashraf: {
       name: { ar: "محمد أشرف", en: "Mohamed Ashraf" },
-      title: { ar: "نائب مسؤول لجنة التنظيم OC — أسرة طلاب من أجل مصر HNU", en: "Vice Head of OC — For Egypt Family HNU" },
+      title: { ar: "نائب رئيس OC — أسرة طلاب من أجل مصر HNU", en: "Vice Head of OC — For Egypt Family HNU" },
       photo: "/assets/images/oc-vice-1.jpg",
       quote: { ar: "«قريباً»", en: "«Coming Soon»" },
-      tags: { ar: ["نائب مسؤول التنظيم", "OC"], en: ["Vice Head of OC", "Operations"] },
+      tags: { ar: ["نائب OC", "تنظيم"], en: ["OC Vice", "Operations"] },
       achievements: { ar: ["قريباً — سيتم إضافة الإنجازات"], en: ["Coming Soon"] },
       about: { ar: "سيتم إضافة السيرة الذاتية قريباً.", en: "Bio coming soon." }
     },
