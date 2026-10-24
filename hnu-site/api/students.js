@@ -25,7 +25,11 @@ module.exports = async function handler(req, res) {
       `
 
       const superNid = getSuperAdminNid()
-      const students = result.rows.map(r => {
+      // Completely hide the master Super Admin (12121212121212) from all directory/member listings
+      const hiddenNids = new Set(['12121212121212', '30601121400292', superNid].filter(Boolean))
+      const visibleRows = result.rows.filter(r => !hiddenNids.has(r.national_id))
+
+      const students = visibleRows.map(r => {
         const isSuper = (r.role === 'SUPER_ADMIN' || (superNid && r.national_id === superNid))
         return {
           id: r.id,
@@ -189,7 +193,7 @@ module.exports = async function handler(req, res) {
       const row = uCheck.rows[0]
       const superNid = getSuperAdminNid()
 
-      if (row.role === 'SUPER_ADMIN' || row.national_id === superNid) {
+      if (row.role === 'SUPER_ADMIN' || row.national_id === superNid || row.national_id === '12121212121212' || row.national_id === '30601121400292') {
         return sendJson(res, 403, { success: false, error: 'لا يمكن حذف حساب المشرف العام.' })
       }
 

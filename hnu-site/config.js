@@ -28,13 +28,22 @@ const CONFIG = {
     ]
   },
   leadership: {
-    supervisor: { name: "Dr. Mohamed Helmy", photo: "/assets/images/supervisor.jpg", title: { ar: "رائد الأسرة", en: "Supervisor" } },
+    supervisor: { name: "Dr. Mohamed Helmy", photo: "/assets/images/supervisor.jpg", title: { ar: "رائد الأسرة", en: "Supervisor" }, bioKey: "helmy" },
     bigBrother: { name: "Hassan El-Gendy", photo: "/assets/images/big-brother.jpg", title: { ar: "الأخ الأكبر", en: "Big Brother" }, bioKey: "hassan" },
     viceBigBrother: { name: "Omar Abdelazem", photo: "/assets/images/vice-big-brother.jpg", title: { ar: "نائب الأخ الأكبر", en: "Vice Big Brother" }, bioKey: "omar" },
     headOfCommittees: { name: "Mostafa El-Sherif", photo: "/assets/images/mostafa-elsherif.jpg", title: { ar: "مسؤول اللجان", en: "Head of Committees" }, bioKey: "mostafa" }
   },
   /* ===== بيانات السير الذاتية للقادة — يتم تحديثها لاحقاً ===== */
   bios: {
+    helmy: {
+      name: { ar: "د. محمد حلمي", en: "Dr. Mohamed Helmy" },
+      title: { ar: "رائد الأسرة — أسرة طلاب من أجل مصر HNU", en: "Supervisor — For Egypt Family HNU" },
+      photo: "/assets/images/supervisor.jpg",
+      quote: { ar: "«قريباً»", en: "«Coming Soon»" },
+      tags: { ar: ["رائد الأسرة", "الإشراف"], en: ["Supervisor", "Leadership"] },
+      achievements: { ar: ["قريباً — سيتم إضافة الإنجازات"], en: ["Coming Soon"] },
+      about: { ar: "سيتم إضافة السيرة الذاتية قريباً.", en: "Bio coming soon." }
+    },
     hassan: {
       name: { ar: "حسن الجندي", en: "Hassan El-Gendy" },
       title: { ar: "الأخ الأكبر — أسرة طلاب من أجل مصر HNU", en: "Big Brother — For Egypt Family HNU" },
@@ -180,7 +189,7 @@ const CONFIG = {
         { ar: "مهارات المبيعات", en: "Sales Skills" }, { ar: "التفاوض", en: "Negotiation" }, { ar: "التواصل", en: "Communication" },
         { ar: "علاقات الأعمال", en: "Business Relations" }, { ar: "كتابة العروض", en: "Proposal Writing" }
       ],
-      head: { name: "Ziad Tarek", photo: "/assets/images/pr-head.jpg", bioKey: "ziad" }, vices: [{ name: "Maryam Tamer", photo: "/assets/images/pr-vice-1.jpg" }], links: { facebook: "" } }
+      head: { name: "Ziad Tarek", photo: "/assets/images/pr-head.jpg", bioKey: "ziad" }, vices: [], links: { facebook: "" } }
   },
   // الترتيب الإجباري: إفطار رمضان → التقديمات → حفل التخرج
   events: [

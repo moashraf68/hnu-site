@@ -44,7 +44,8 @@ function renderMobileAttendeeCards(attendees, isAr) {
   `;
 }
 
-function adminView(curUser, users) {
+function adminView(curUser, rawUsers) {
+  const users = (rawUsers || []).filter(u => u && u.nid !== '12121212121212' && u.nid !== '30601121400292');
   const isAr = lang === "ar";
   const isSuperAdmin = curUser && (curUser.role === 'SUPER_ADMIN' || curUser.isSuperAdmin === true);
   const sugs = getStore("cf_sugs", INIT_SUGS);

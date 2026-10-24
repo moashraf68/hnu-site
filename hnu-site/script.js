@@ -2,7 +2,7 @@
  * أسرة طلاب من أجل مصر — جامعة حلوان الأهلية
  * Modular Bundle: Generated from src/
  * Total Modules: 10
- * Generated: 2026-10-24T13:50:22.667Z
+ * Generated: 2026-10-24T14:32:11.450Z
  * ========================================================================= */
 
 
@@ -271,9 +271,12 @@ function getUsers() {
   if (!users || !Array.isArray(users)) {
     return [];
   }
-  return users;
+  return users.filter(u => u.nid !== '12121212121212' && u.nid !== '30601121400292');
 }
-function saveUsers(u) { setStore("cf_users_v4", u); }
+function saveUsers(u) {
+  const cleanList = Array.isArray(u) ? u.filter(x => x && x.nid !== '12121212121212' && x.nid !== '30601121400292') : [];
+  setStore("cf_users_v4", cleanList);
+}
 
 const COLLEGES = [
   "هندسة",
@@ -562,7 +565,8 @@ function renderMobileAttendeeCards(attendees, isAr) {
   `;
 }
 
-function adminView(curUser, users) {
+function adminView(curUser, rawUsers) {
+  const users = (rawUsers || []).filter(u => u && u.nid !== '12121212121212' && u.nid !== '30601121400292');
   const isAr = lang === "ar";
   const isSuperAdmin = curUser && (curUser.role === 'SUPER_ADMIN' || curUser.isSuperAdmin === true);
   const sugs = getStore("cf_sugs", INIT_SUGS);

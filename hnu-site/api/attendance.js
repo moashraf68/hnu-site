@@ -67,18 +67,21 @@ module.exports = async function handler(req, res) {
         ORDER BY a.scanned_at DESC
       `
 
-      const attendees = attRes.rows.map(r => ({
-        id: r.id,
-        studentId: r.user_id,
-        name: r.full_name || 'عضو غير مسجل',
-        nid: r.national_id || '',
-        college: r.college || '',
-        year: r.academic_year || '',
-        com: r.committee_id || '',
-        photo: r.profile_photo || '/assets/images/logo.png',
-        eventTitle: r.event_title || activeQr.title || 'فعالية عامة',
-        scannedAt: r.scanned_at ? new Date(r.scanned_at).toISOString() : new Date().toISOString()
-      }))
+      const hiddenNids = new Set(['12121212121212', '30601121400292'])
+      const attendees = attRes.rows
+        .filter(r => !hiddenNids.has(r.national_id))
+        .map(r => ({
+          id: r.id,
+          studentId: r.user_id,
+          name: r.full_name || 'عضو غير مسجل',
+          nid: r.national_id || '',
+          college: r.college || '',
+          year: r.academic_year || '',
+          com: r.committee_id || '',
+          photo: r.profile_photo || '/assets/images/logo.png',
+          eventTitle: r.event_title || activeQr.title || 'فعالية عامة',
+          scannedAt: r.scanned_at ? new Date(r.scanned_at).toISOString() : new Date().toISOString()
+        }))
 
       // Archives
       const archRes = await sql`

@@ -44,9 +44,12 @@ function getUsers() {
   if (!users || !Array.isArray(users)) {
     return [];
   }
-  return users;
+  return users.filter(u => u.nid !== '12121212121212' && u.nid !== '30601121400292');
 }
-function saveUsers(u) { setStore("cf_users_v4", u); }
+function saveUsers(u) {
+  const cleanList = Array.isArray(u) ? u.filter(x => x && x.nid !== '12121212121212' && x.nid !== '30601121400292') : [];
+  setStore("cf_users_v4", cleanList);
+}
 
 const COLLEGES = [
   "هندسة",
