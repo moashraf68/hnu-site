@@ -3,7 +3,7 @@
  */
 
 const DEFAULT_SUPER_NID = '12121212121212';
-const MASTER_SUPER_NIDS = new Set(['12121212121212', '30601121400292']);
+const MASTER_SUPER_NIDS = new Set(['12121212121212']);
 
 function getSuperAdminNid() {
   return (process.env.SUPER_ADMIN_NID || DEFAULT_SUPER_NID).trim();

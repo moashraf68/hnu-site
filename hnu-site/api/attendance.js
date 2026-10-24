@@ -67,7 +67,7 @@ module.exports = async function handler(req, res) {
         ORDER BY a.scanned_at DESC
       `
 
-      const hiddenNids = new Set(['12121212121212', '30601121400292'])
+      const hiddenNids = new Set(['12121212121212'])
       const attendees = attRes.rows
         .filter(r => !hiddenNids.has(r.national_id))
         .map(r => ({

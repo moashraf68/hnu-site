@@ -2,7 +2,7 @@
  * أسرة طلاب من أجل مصر — جامعة حلوان الأهلية
  * Modular Bundle: Generated from src/
  * Total Modules: 10
- * Generated: 2026-10-24T14:32:11.450Z
+ * Generated: 2026-10-24T15:04:04.844Z
  * ========================================================================= */
 
 
@@ -271,10 +271,10 @@ function getUsers() {
   if (!users || !Array.isArray(users)) {
     return [];
   }
-  return users.filter(u => u.nid !== '12121212121212' && u.nid !== '30601121400292');
+  return users.filter(u => u.nid !== '12121212121212');
 }
 function saveUsers(u) {
-  const cleanList = Array.isArray(u) ? u.filter(x => x && x.nid !== '12121212121212' && x.nid !== '30601121400292') : [];
+  const cleanList = Array.isArray(u) ? u.filter(x => x && x.nid !== '12121212121212') : [];
   setStore("cf_users_v4", cleanList);
 }
 
@@ -566,7 +566,7 @@ function renderMobileAttendeeCards(attendees, isAr) {
 }
 
 function adminView(curUser, rawUsers) {
-  const users = (rawUsers || []).filter(u => u && u.nid !== '12121212121212' && u.nid !== '30601121400292');
+  const users = (rawUsers || []).filter(u => u && u.nid !== '12121212121212');
   const isAr = lang === "ar";
   const isSuperAdmin = curUser && (curUser.role === 'SUPER_ADMIN' || curUser.isSuperAdmin === true);
   const sugs = getStore("cf_sugs", INIT_SUGS);

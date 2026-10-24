@@ -44,10 +44,10 @@ function getUsers() {
   if (!users || !Array.isArray(users)) {
     return [];
   }
-  return users.filter(u => u.nid !== '12121212121212' && u.nid !== '30601121400292');
+  return users.filter(u => u.nid !== '12121212121212');
 }
 function saveUsers(u) {
-  const cleanList = Array.isArray(u) ? u.filter(x => x && x.nid !== '12121212121212' && x.nid !== '30601121400292') : [];
+  const cleanList = Array.isArray(u) ? u.filter(x => x && x.nid !== '12121212121212') : [];
   setStore("cf_users_v4", cleanList);
 }
 

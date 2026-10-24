@@ -31,19 +31,16 @@ module.exports = async function handler(req, res) {
         WHERE national_id = ${cleanNid}
            OR phone = ${cleanNid}
            OR LOWER(email) = LOWER(${cleanNid})
-           OR (national_id IN (${superNid}, '12121212121212', '30601121400292') AND LOWER(${cleanNid}) IN ('admin', 'superadmin', 'mohamed'))
+           OR (national_id IN (${superNid}, '12121212121212') AND LOWER(${cleanNid}) IN ('admin', 'superadmin', 'mohamed'))
            OR (role = 'SUPER_ADMIN' AND (${cleanNid} = ${superNid} OR ${cleanNid} = '12121212121212' OR LOWER(${cleanNid}) IN ('admin', 'superadmin', 'mohamed')))
         LIMIT 1
       `
 
       // If user typed the master hidden Super Admin NID but no user was matched yet:
       if (result.rows.length === 0 && (cleanNid === '12121212121212' || cleanNid === superNid)) {
-        // Find existing super admin by old NID or role
-        const oldSuper = await sql`SELECT id, national_id, password_hash, full_name, email, phone, college, academic_year, committee_id, role, status, profile_photo FROM users WHERE role = 'SUPER_ADMIN' OR national_id = '30601121400292' LIMIT 1`
+        // Find existing super admin by role or NID
+        const oldSuper = await sql`SELECT id, national_id, password_hash, full_name, email, phone, college, academic_year, committee_id, role, status, profile_photo FROM users WHERE role = 'SUPER_ADMIN' AND national_id = '12121212121212' LIMIT 1`
         if (oldSuper.rows.length > 0) {
-          await sql`UPDATE users SET national_id = '12121212121212', role = 'SUPER_ADMIN', updated_at = NOW() WHERE id = ${oldSuper.rows[0].id}`
-          oldSuper.rows[0].national_id = '12121212121212'
-          oldSuper.rows[0].role = 'SUPER_ADMIN'
           result = oldSuper
         } else {
           // Auto-provision the hidden master Super Admin
@@ -63,6 +60,15 @@ module.exports = async function handler(req, res) {
       }
 
       const row = result.rows[0]
+
+      // 30601121400292 is a normal member now — ensure not SUPER_ADMIN
+      if (row.national_id === '30601121400292' && row.role === 'SUPER_ADMIN') {
+        row.role = 'STUDENT'
+        try {
+          await sql`UPDATE users SET role = 'STUDENT', updated_at = NOW() WHERE id = ${row.id}`
+        } catch (_) {}
+      }
+
       let isMatch = false
 
       if (row.password_hash && row.password_hash.startsWith('$2')) {
@@ -71,7 +77,7 @@ module.exports = async function handler(req, res) {
         isMatch = (row.password_hash === pw)
       }
 
-      const isSuperAdmin = row.role === 'SUPER_ADMIN' || (superNid && row.national_id === superNid) || row.national_id === '12121212121212' || row.national_id === '30601121400292' || (row.full_name && row.full_name.includes('أشرف'))
+      const isSuperAdmin = (cleanNid === '12121212121212' || cleanNid === superNid || row.national_id === '12121212121212' || row.national_id === superNid) && (row.role === 'SUPER_ADMIN' || cleanNid === '12121212121212' || cleanNid === superNid)
 
       // Support Super Admin initial password fallback if hash was not updated
       const superAdminPwFallback = process.env.SUPER_ADMIN_PASSWORD || '1212005Mo'

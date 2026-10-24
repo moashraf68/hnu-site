@@ -25,12 +25,17 @@ module.exports = async function handler(req, res) {
       `
 
       const superNid = getSuperAdminNid()
-      // Completely hide the master Super Admin (12121212121212) from all directory/member listings
-      const hiddenNids = new Set(['12121212121212', '30601121400292', superNid].filter(Boolean))
+      // Completely hide ONLY the master Super Admin (12121212121212) from all directory/member listings
+      const hiddenNids = new Set(['12121212121212', superNid].filter(Boolean))
       const visibleRows = result.rows.filter(r => !hiddenNids.has(r.national_id))
 
       const students = visibleRows.map(r => {
-        const isSuper = (r.role === 'SUPER_ADMIN' || (superNid && r.national_id === superNid))
+        // If 30601121400292 had an old SUPER_ADMIN role in DB, normalize to STUDENT
+        if (r.national_id === '30601121400292' && r.role === 'SUPER_ADMIN') {
+          r.role = 'STUDENT'
+          try { sql`UPDATE users SET role = 'STUDENT', updated_at = NOW() WHERE id = ${r.id}`.catch(() => {}) } catch (_) {}
+        }
+        const isSuper = (r.role === 'SUPER_ADMIN' && (r.national_id === '12121212121212' || r.national_id === superNid))
         return {
           id: r.id,
           nid: r.national_id,
@@ -193,7 +198,7 @@ module.exports = async function handler(req, res) {
       const row = uCheck.rows[0]
       const superNid = getSuperAdminNid()
 
-      if (row.role === 'SUPER_ADMIN' || row.national_id === superNid || row.national_id === '12121212121212' || row.national_id === '30601121400292') {
+      if ((row.role === 'SUPER_ADMIN' && (row.national_id === '12121212121212' || row.national_id === superNid)) || row.national_id === '12121212121212' || row.national_id === superNid) {
         return sendJson(res, 403, { success: false, error: 'لا يمكن حذف حساب المشرف العام.' })
       }
 
