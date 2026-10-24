@@ -2,7 +2,7 @@
  * أسرة طلاب من أجل مصر — جامعة حلوان الأهلية
  * Modular Bundle: Generated from src/
  * Total Modules: 10
- * Generated: 2026-10-24T12:01:39.140Z
+ * Generated: 2026-10-24T12:20:59.101Z
  * ========================================================================= */
 
 
@@ -3722,6 +3722,17 @@ function closeBioModal() {
     if (bioModalOpener && typeof bioModalOpener.focus === 'function') bioModalOpener.focus();
   }, 250);
 }
+
+// Global exposure for inline onclick attributes
+window.openBioModal = openBioModal;
+window.closeBioModal = closeBioModal;
+
+// Document-level listener ensures modal clicks work even when outside #app
+document.addEventListener('click', e => {
+  if (e.target.closest('#bio-modal-x') || e.target.closest('[data-bio-close]') || e.target === document.getElementById('bio-modal')) {
+    closeBioModal();
+  }
+});
 
 // Keyboard: Escape closes bio modal
 addEventListener('keydown', e => {

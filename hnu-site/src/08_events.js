@@ -1548,6 +1548,17 @@ function closeBioModal() {
   }, 250);
 }
 
+// Global exposure for inline onclick attributes
+window.openBioModal = openBioModal;
+window.closeBioModal = closeBioModal;
+
+// Document-level listener ensures modal clicks work even when outside #app
+document.addEventListener('click', e => {
+  if (e.target.closest('#bio-modal-x') || e.target.closest('[data-bio-close]') || e.target === document.getElementById('bio-modal')) {
+    closeBioModal();
+  }
+});
+
 // Keyboard: Escape closes bio modal
 addEventListener('keydown', e => {
   if (e.key === 'Escape') {

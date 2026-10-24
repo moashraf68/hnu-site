@@ -162,6 +162,8 @@ footer nav{display:flex;flex-wrap:wrap;gap:4px 16px;justify-content:center}foote
 #bio-modal-ach li{display:flex;align-items:flex-start;gap:10px;background:var(--bei);border-radius:12px;padding:12px 14px;color:var(--c1);font-size:.92rem;line-height:1.6;text-align:right}
 #bio-modal-ach li::before{content:"✦";color:var(--g2);font-size:.8rem;margin-top:3px;flex-shrink:0}
 #bio-modal-tags span{background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.32);border-radius:999px;padding:3px 13px;font-size:.78rem;font-weight:600;backdrop-filter:blur(4px)}
+#bio-modal-x:hover{background:rgba(200,16,46,.9)!important;border-color:transparent!important;transform:scale(1.08)}
+#bio-modal-x:active{transform:scale(.92)}
 @media(max-width:480px){#bio-modal-box{border-radius:18px}#bio-modal .bio-hd{padding:28px 18px 18px}#bio-modal .bio-bd{padding:18px 18px 24px}}
 
 /* page transitions */
