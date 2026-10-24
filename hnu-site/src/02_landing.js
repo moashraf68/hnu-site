@@ -26,6 +26,7 @@ function homeView() {
 <section id="leaders" class="sec alt"><div class="wrap"><h2 class="rv">${S("n_lead")}</h2>
   ${L.supervisor ? `<div class="org rv" style="justify-content:center;margin-bottom:18px">${person(L.supervisor, t(L.supervisor.title), "lg")}</div>` : ""}
   <div class="org rv">${person(L.bigBrother, t(L.bigBrother.title), "lg")}<div class="line" aria-hidden="true"></div>${person(L.viceBigBrother, t(L.viceBigBrother.title), "lg")}</div>
+  ${L.headOfCommittees ? `<div class="org rv" style="justify-content:center;margin-top:28px">${person(L.headOfCommittees, t(L.headOfCommittees.title), "lg")}</div>` : ""}
 </div></section>
 
 <section id="events" class="sec"><div class="wrap"><h2 class="rv">${S("n_ev")}</h2><p class="subh rv">${S("ev_sub")}</p>
