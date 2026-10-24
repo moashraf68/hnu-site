@@ -2,7 +2,7 @@
  * أسرة طلاب من أجل مصر — جامعة حلوان الأهلية
  * Modular Bundle: Generated from src/
  * Total Modules: 10
- * Generated: 2026-10-24T01:22:58.668Z
+ * Generated: 2026-10-24T11:35:17.810Z
  * ========================================================================= */
 
 
@@ -2368,7 +2368,6 @@ app.addEventListener("click", async e => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'RECORD',
           studentId: curUser.id,
           eventTitle: activeQr.title
         })
@@ -3552,19 +3551,21 @@ async function syncAttendanceWithCloud() {
         }
       }
 
-      // 2. Sync Live Attendances
-      if (Array.isArray(data.attendances)) {
+      // 2. Sync Live Attendances (API returns `attendees`, not `attendances`)
+      const cloudAtts = data.attendees || data.attendances || null;
+      if (Array.isArray(cloudAtts)) {
         const localAtts = getStore("cf_attendance", []);
-        if (JSON.stringify(data.attendances) !== JSON.stringify(localAtts)) {
-          setStore("cf_attendance", data.attendances);
+        if (JSON.stringify(cloudAtts) !== JSON.stringify(localAtts)) {
+          setStore("cf_attendance", cloudAtts);
           changed = true;
         }
       }
 
-      // 3. Sync Archived Events
-      if (Array.isArray(data.archivedEvents)) {
+      // 3. Sync Archived Events (API returns `archives`, not `archivedEvents`)
+      const cloudArchives = data.archives || data.archivedEvents || null;
+      if (Array.isArray(cloudArchives)) {
         const deletedIds = getStore("cf_deleted_archive_ids", []);
-        const filteredArch = data.archivedEvents.filter(e => !deletedIds.includes(e.id));
+        const filteredArch = cloudArchives.filter(e => !deletedIds.includes(e.id));
         const localArch = getStore("cf_events_archive", []);
         if (JSON.stringify(filteredArch) !== JSON.stringify(localArch)) {
           setStore("cf_events_archive", filteredArch);
