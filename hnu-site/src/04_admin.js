@@ -3,6 +3,47 @@
  * Part of HNU Students For Egypt Platform
  */
 
+function renderMobileAttendeeCards(attendees, isAr) {
+  if (!attendees || attendees.length === 0) {
+    return `<div class="att-mobile-cards" style="padding:18px;text-align:center;color:var(--c2);background:var(--bei);border-radius:14px;font-size:.88rem">${isAr ? 'لم يقم أي طالب بتسجيل الحضور في هذه الفعالية بعد.' : 'No attendees recorded yet.'}</div>`;
+  }
+  return `
+    <div class="att-mobile-cards" style="margin-top:10px">
+      ${attendees.map((att, i) => `
+        <div style="background:#fff;border:1.5px solid var(--bei);border-radius:14px;padding:12px 14px;box-shadow:0 2px 10px rgba(59,38,22,.04);display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <div style="display:flex;align-items:center;gap:10px;min-width:0">
+              <button type="button" class="av-zoom-btn" data-photo="${att.photo || '/assets/images/logo.png'}" data-name="${att.studentName}" title="${isAr ? 'اضغط لتكبير الصورة' : 'Click to zoom'}">
+                <div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:2px solid var(--g);background:#fff;flex-shrink:0">
+                  <img src="${att.photo || '/assets/images/logo.png'}" style="width:100%;height:100%;object-fit:cover" alt="${att.studentName}" onerror="this.onerror=null;this.src='/assets/images/logo.png'">
+                </div>
+              </button>
+              <div style="min-width:0">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:.76rem;font-weight:800;color:var(--c1);background:var(--bei);border-radius:999px;padding:1px 7px;flex-shrink:0">${i + 1}</span>
+                  <b style="font-size:.92rem;color:var(--c1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${att.studentName}</b>
+                </div>
+                <div style="font-size:.78rem;color:var(--c2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                  ${getCollegeName(att.college || '—')}${att.year ? ' • ' + getYearName(att.year) : ''}
+                </div>
+              </div>
+            </div>
+            ${att.phone ? `
+              <a href="tel:${att.phone}" class="btn sm" style="padding:6px 12px;min-height:32px;height:32px;border-radius:999px;font-size:.78rem;flex-shrink:0;text-decoration:none" title="اتصال">
+                📞 <span style="font-size:.74rem">${isAr ? 'اتصال' : 'Call'}</span>
+              </a>
+            ` : ''}
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:6px;border-top:1px dashed var(--bei);font-size:.76rem;color:var(--c2)">
+            <span class="sbadge" style="background:var(--bei);color:var(--c1);font-size:.74rem;padding:2px 8px">${getComName(att.committee)}</span>
+            <span>⏰ <code>${att.time || att.scannedAt || '—'}</code></span>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
 function adminView(curUser, users) {
   const isAr = lang === "ar";
   const isSuperAdmin = curUser && (curUser.role === 'SUPER_ADMIN' || curUser.isSuperAdmin === true);
@@ -595,7 +636,7 @@ function adminView(curUser, users) {
                 </button>
               </div>
             </div>
-            <div class="tbl-wrap" style="margin-top:12px">
+            <div class="tbl-wrap att-desktop-table" style="margin-top:12px">
               <table class="atbl">
                 <thead><tr><th>#</th><th>${isAr ? 'الطالب' : 'Student'}</th><th>${isAr ? 'الكلية' : 'Faculty'}</th><th>${isAr ? 'اللجنة' : 'Committee'}</th><th>${isAr ? 'رقم الهاتف' : 'Phone'}</th><th>${isAr ? 'وقت التسجيل' : 'Scan Time'}</th></tr></thead>
                 <tbody>
@@ -621,6 +662,7 @@ function adminView(curUser, users) {
                 </tbody>
               </table>
             </div>
+            ${renderMobileAttendeeCards(activeEventAttendees, isAr)}
           </div>
         ` : ''}
 
@@ -650,7 +692,7 @@ function adminView(curUser, users) {
                       📅 ${ev.date} • ⏰ ${ev.time} • <span class="sbadge act" style="margin-inline-start:6px">👥 ${ev.totalAttendees || (ev.attendees ? ev.attendees.length : 0)} ${isAr ? 'طالب مسجل' : 'Attendees'}</span>
                     </p>
                   </div>
-                  <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <div class="archived-ev-actions" style="display:flex;gap:8px;flex-wrap:wrap">
                     <button type="button" class="btn sm" data-toggle-event-archive="${ev.id}" style="padding:6px 14px;font-size:.82rem">
                       📋 ${openedEventArchiveId === ev.id ? (isAr ? 'إخفاء الكشف ✕' : 'Hide') : (isAr ? 'عرض كشف الحضور 👁️' : 'View Attendees')}
                     </button>
@@ -671,7 +713,7 @@ function adminView(curUser, users) {
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
                       <h5 style="color:var(--c1);margin:0">👥 ${isAr ? 'كشف تفصيلي بأسماء وكليات وأرقام هواتف الطلاب المسجلين:' : 'Attendees Details & Phone Numbers:'}</h5>
                     </div>
-                    <div class="tbl-wrap">
+                    <div class="tbl-wrap att-desktop-table">
                       <table class="atbl">
                         <thead>
                           <tr>
@@ -710,6 +752,7 @@ function adminView(curUser, users) {
                         </tbody>
                       </table>
                     </div>
+                    ${renderMobileAttendeeCards(ev.attendees, isAr)}
                   </div>
                 ` : ''}
               </div>

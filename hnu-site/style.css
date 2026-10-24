@@ -32,7 +32,33 @@ main{flex:1;padding-top:var(--nav)}main:focus{outline:0}
 #menu.open a{padding:10px 14px;font-size:.95rem;border-radius:12px}#menu.open .join-m{display:block;margin-top:6px;text-align:center;background:var(--grad);color:var(--c1);font-weight:800;border-radius:12px;padding:10px 16px;font-size:.95rem}
 @keyframes drop{from{opacity:0;transform:translateY(-8px)}}
 @media(min-width:1024px){#menu{display:flex}#burger{display:none}.nav-join{display:inline-flex}}
-@media(max-width:540px){.nav-act{gap:5px}.nav-login{padding:0 10px;font-size:.78rem;height:32px;min-height:32px}.lang{padding:0 8px;min-width:36px;height:32px;font-size:.8rem}#burger{width:32px;height:32px}.brand span{font-size:.95rem}.brand img{width:38px}}
+@media(max-width:680px){
+  :root{--nav:56px}
+  .nav-in{height:56px;gap:8px;padding:0 12px}
+  .brand{gap:7px}
+  .brand img{width:34px;height:34px;border-radius:8px}
+  .brand span{font-size:.88rem;font-weight:800}
+  .nav-act{gap:5px}
+  .lang{padding:0 8px;min-width:32px;height:30px;font-size:.76rem;border-width:1px}
+  .nav-login{padding:0 10px;font-size:.76rem;height:30px;min-height:30px;border-width:1.2px;gap:4px}
+  #burger{width:32px;height:32px;gap:4px;padding:3px}
+  #burger span{width:17px;height:2px}
+  .att-desktop-table{display:none!important}
+  .att-mobile-cards{display:flex!important;flex-direction:column;gap:10px}
+  .archived-ev-actions{display:grid!important;grid-template-columns:1fr 1fr;width:100%;margin-top:10px;gap:8px}
+  .archived-ev-actions button{width:100%;justify-content:center;padding:8px 10px!important}
+}
+@media(max-width:380px){
+  .nav-in{padding:0 8px;gap:4px}
+  .brand img{width:30px;height:30px}
+  .brand span{font-size:.82rem}
+  .nav-login{font-size:.72rem;padding:0 7px}
+  .lang{padding:0 5px;min-width:28px;font-size:.72rem}
+}
+@media(min-width:681px){
+  .att-desktop-table{display:block!important}
+  .att-mobile-cards{display:none!important}
+}
 
 /* buttons */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--grad);color:var(--c1);font:inherit;font-weight:800;padding:10px 26px;min-height:44px;border-radius:999px;border:2px solid transparent;cursor:pointer;transition:transform .25s,box-shadow .25s,background .25s,color .25s;box-shadow:0 4px 14px rgba(201,138,11,.3), 0 0 14px rgba(242,168,29,.25)}
