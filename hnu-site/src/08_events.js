@@ -598,6 +598,47 @@ app.addEventListener("click", async e => {
     render("keep");
     return;
   }
+
+  const clearAllAttBtn = e.target.closest("#btn-clear-all-attendance");
+  if (clearAllAttBtn) {
+    const isAr = lang === "ar";
+    if (!confirm(isAr ? "هل أنت متأكد من تصفية وحذف كامل سجلات وأرشيف الحضور؟ لن يمكن التراجع عن هذا الإجراء." : "Are you sure you want to clear all attendance records and archives?")) return;
+
+    clearAllAttBtn.disabled = true;
+    clearAllAttBtn.textContent = isAr ? 'جاري التصفية...' : 'Clearing...';
+
+    const curUserId = localStorage.getItem("cf_user_id");
+    const curUser = getStore("cf_cur_user", null) || getUsers().find(u => u.id === curUserId);
+
+    try {
+      const res = await fetch('/api/attendance', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clearAll: true,
+          requesterId: curUser?.id,
+          requesterNid: curUser?.nid
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStore("cf_attendance", []);
+        setStore("cf_events_archive", []);
+        setStore("cf_active_qr", { active: false, title: "", image: "" });
+        setStore("cf_deleted_archive_ids", []);
+        alert(isAr ? "تم مسح وتصفية جميع سجلات وأرشيف الحضور بنجاح!" : "All attendance records cleared!");
+        render("keep");
+      } else {
+        alert(data.error || (isAr ? "فشل المسح." : "Failed to clear."));
+        clearAllAttBtn.disabled = false;
+        clearAllAttBtn.textContent = isAr ? '🗑️ تصفية سجل الحضور بالكامل' : '🗑️ Clear All History';
+      }
+    } catch (err) {
+      alert(isAr ? "خطأ في الاتصال بالخادم." : "Connection error.");
+      clearAllAttBtn.disabled = false;
+    }
+    return;
+  }
 });
 
 function compressAndResizeImage(file, maxDim, callback, quality = 0.90) {

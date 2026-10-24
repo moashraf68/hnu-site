@@ -295,9 +295,12 @@ module.exports = async function handler(req, res) {
         return sendJson(res, 200, { success: true, message: 'تم حذف سجل الحضور.' })
       }
 
-      if (clearAll === 'true') {
+      if (clearAll === 'true' || clearAll === true || body.action === 'CLEAR_ALL' || req.query.action === 'CLEAR_ALL') {
         await sql`DELETE FROM attendance`
-        return sendJson(res, 200, { success: true, message: 'تم مسح سجلات الحضور.' })
+        await sql`DELETE FROM events_archive`
+        try { await sql`DELETE FROM events` } catch (_) {}
+        try { await sql`UPDATE active_qr SET is_active = false, title = '', image = '', updated_at = NOW()` } catch (_) {}
+        return sendJson(res, 200, { success: true, message: 'تم تصفية كامل سجلات وأرشيف الحضور بنجاح.' })
       }
 
       return sendJson(res, 400, { success: false, error: 'معرف السجل أو كشف الفعالية مطلوب للحذف.' })

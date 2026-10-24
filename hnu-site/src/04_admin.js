@@ -676,7 +676,14 @@ function adminView(curUser, rawUsers) {
                 ${isAr ? 'تضم جميع الفعاليات التي تم إدارتها بالـ QR مع أسماء وكليات وأرقام هواتف الطلاب المشاركين، وإمكانية تصديرها وطباعتها.' : 'Complete archive of all QR events with student names, faculties, phone numbers, CSV export, and print.'}
               </p>
             </div>
-            <span class="sbadge act">${eventsArchive.length} ${isAr ? 'فعالية مؤرشفة' : 'Archived Events'}</span>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <span class="sbadge act">${eventsArchive.length} ${isAr ? 'فعالية مؤرشفة' : 'Archived Events'}</span>
+              ${isSuperAdmin || (curUser && curUser.role === 'ADMIN') ? `
+                <button type="button" class="btn sm ghost" id="btn-clear-all-attendance" style="padding:4px 12px;font-size:.78rem;color:var(--red);border-color:var(--red)" title="${isAr ? 'تصفية كل سجلات الحضور السابقة' : 'Clear all attendance history'}">
+                  🗑️ ${isAr ? 'تصفية سجل الحضور بالكامل' : 'Clear All History'}
+                </button>
+              ` : ''}
+            </div>
           </div>
 
           <div style="display:grid;gap:14px;margin-top:14px">

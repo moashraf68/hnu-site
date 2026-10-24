@@ -9,33 +9,7 @@ let memberSortBy = "score_desc", memberFilterCom = "all", memberFilterCollege = 
 const getStore = (k, def) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } };
 const setStore = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
-const INIT_EVENTS_ARCHIVE = [
-  {
-    id: "ev-init-1",
-    title: "ملتقى استقبال الطلاب الجدد والتعريف باللجان",
-    date: "10/10/2026",
-    time: "11:00 ص",
-    totalAttendees: 4,
-    attendees: [
-      { studentId: "std-1", studentName: "أحمد محمود سالم", nid: "30501121400111", college: "حاسبات", year: "الفرقة الأولى", committee: "oc", phone: "01012345678", photo: "/assets/images/logo.png", time: "11:05 ص" },
-      { studentId: "std-2", studentName: "سارة إبراهيم حسن", nid: "30502121400222", college: "هندسة", year: "الفرقة الثانية", committee: "hr", phone: "01123456789", photo: "/assets/images/logo.png", time: "11:12 ص" },
-      { studentId: "std-3", studentName: "كريم عبد الرحمن علي", nid: "30503121400333", college: "فنون", year: "الفرقة الأولى", committee: "media", phone: "01234567890", photo: "/assets/images/logo.png", time: "11:20 ص" },
-      { studentId: "std-4", studentName: "نورهان طارق يوسف", nid: "30504121400444", college: "بيزنس", year: "الفرقة الثالثة", committee: "pr", phone: "01545678901", photo: "/assets/images/logo.png", time: "11:35 ص" }
-    ]
-  },
-  {
-    id: "ev-init-2",
-    title: "إفطار رمضان الجماعي 2026 — جامعة حلوان الأهلية",
-    date: "25/03/2026",
-    time: "05:30 م",
-    totalAttendees: 3,
-    attendees: [
-      { studentId: "std-5", studentName: "يوسف خالد مصطفى", nid: "30405121400555", college: "طب بشري", year: "الفرقة الثانية", committee: "oc", phone: "01098765432", photo: "/assets/images/logo.png", time: "05:45 م" },
-      { studentId: "std-6", studentName: "منة الله شريف", nid: "30406121400666", college: "علاج طبيعي", year: "الفرقة الأولى", committee: "hr", phone: "01187654321", photo: "/assets/images/logo.png", time: "05:52 م" },
-      { studentId: "std-7", studentName: "عمر هاني زكي", nid: "30407121400777", college: "طب أسنان", year: "الفرقة الثانية", committee: "pr", phone: "01276543210", photo: "/assets/images/logo.png", time: "06:05 م" }
-    ]
-  }
-];
+const INIT_EVENTS_ARCHIVE = [];
 
 const DEFAULT_USERS = [];
 

@@ -2,7 +2,7 @@
  * أسرة طلاب من أجل مصر — جامعة حلوان الأهلية
  * Modular Bundle: Generated from src/
  * Total Modules: 10
- * Generated: 2026-10-24T15:22:42.177Z
+ * Generated: 2026-10-24T16:27:45.585Z
  * ========================================================================= */
 
 
@@ -236,33 +236,7 @@ let memberSortBy = "score_desc", memberFilterCom = "all", memberFilterCollege = 
 const getStore = (k, def) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } };
 const setStore = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
-const INIT_EVENTS_ARCHIVE = [
-  {
-    id: "ev-init-1",
-    title: "ملتقى استقبال الطلاب الجدد والتعريف باللجان",
-    date: "10/10/2026",
-    time: "11:00 ص",
-    totalAttendees: 4,
-    attendees: [
-      { studentId: "std-1", studentName: "أحمد محمود سالم", nid: "30501121400111", college: "حاسبات", year: "الفرقة الأولى", committee: "oc", phone: "01012345678", photo: "/assets/images/logo.png", time: "11:05 ص" },
-      { studentId: "std-2", studentName: "سارة إبراهيم حسن", nid: "30502121400222", college: "هندسة", year: "الفرقة الثانية", committee: "hr", phone: "01123456789", photo: "/assets/images/logo.png", time: "11:12 ص" },
-      { studentId: "std-3", studentName: "كريم عبد الرحمن علي", nid: "30503121400333", college: "فنون", year: "الفرقة الأولى", committee: "media", phone: "01234567890", photo: "/assets/images/logo.png", time: "11:20 ص" },
-      { studentId: "std-4", studentName: "نورهان طارق يوسف", nid: "30504121400444", college: "بيزنس", year: "الفرقة الثالثة", committee: "pr", phone: "01545678901", photo: "/assets/images/logo.png", time: "11:35 ص" }
-    ]
-  },
-  {
-    id: "ev-init-2",
-    title: "إفطار رمضان الجماعي 2026 — جامعة حلوان الأهلية",
-    date: "25/03/2026",
-    time: "05:30 م",
-    totalAttendees: 3,
-    attendees: [
-      { studentId: "std-5", studentName: "يوسف خالد مصطفى", nid: "30405121400555", college: "طب بشري", year: "الفرقة الثانية", committee: "oc", phone: "01098765432", photo: "/assets/images/logo.png", time: "05:45 م" },
-      { studentId: "std-6", studentName: "منة الله شريف", nid: "30406121400666", college: "علاج طبيعي", year: "الفرقة الأولى", committee: "hr", phone: "01187654321", photo: "/assets/images/logo.png", time: "05:52 م" },
-      { studentId: "std-7", studentName: "عمر هاني زكي", nid: "30407121400777", college: "طب أسنان", year: "الفرقة الثانية", committee: "pr", phone: "01276543210", photo: "/assets/images/logo.png", time: "06:05 م" }
-    ]
-  }
-];
+const INIT_EVENTS_ARCHIVE = [];
 
 const DEFAULT_USERS = [];
 
@@ -1199,7 +1173,14 @@ function adminView(curUser, rawUsers) {
                 ${isAr ? 'تضم جميع الفعاليات التي تم إدارتها بالـ QR مع أسماء وكليات وأرقام هواتف الطلاب المشاركين، وإمكانية تصديرها وطباعتها.' : 'Complete archive of all QR events with student names, faculties, phone numbers, CSV export, and print.'}
               </p>
             </div>
-            <span class="sbadge act">${eventsArchive.length} ${isAr ? 'فعالية مؤرشفة' : 'Archived Events'}</span>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <span class="sbadge act">${eventsArchive.length} ${isAr ? 'فعالية مؤرشفة' : 'Archived Events'}</span>
+              ${isSuperAdmin || (curUser && curUser.role === 'ADMIN') ? `
+                <button type="button" class="btn sm ghost" id="btn-clear-all-attendance" style="padding:4px 12px;font-size:.78rem;color:var(--red);border-color:var(--red)" title="${isAr ? 'تصفية كل سجلات الحضور السابقة' : 'Clear all attendance history'}">
+                  🗑️ ${isAr ? 'تصفية سجل الحضور بالكامل' : 'Clear All History'}
+                </button>
+              ` : ''}
+            </div>
           </div>
 
           <div style="display:grid;gap:14px;margin-top:14px">
@@ -2827,6 +2808,47 @@ app.addEventListener("click", async e => {
     render("keep");
     return;
   }
+
+  const clearAllAttBtn = e.target.closest("#btn-clear-all-attendance");
+  if (clearAllAttBtn) {
+    const isAr = lang === "ar";
+    if (!confirm(isAr ? "هل أنت متأكد من تصفية وحذف كامل سجلات وأرشيف الحضور؟ لن يمكن التراجع عن هذا الإجراء." : "Are you sure you want to clear all attendance records and archives?")) return;
+
+    clearAllAttBtn.disabled = true;
+    clearAllAttBtn.textContent = isAr ? 'جاري التصفية...' : 'Clearing...';
+
+    const curUserId = localStorage.getItem("cf_user_id");
+    const curUser = getStore("cf_cur_user", null) || getUsers().find(u => u.id === curUserId);
+
+    try {
+      const res = await fetch('/api/attendance', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clearAll: true,
+          requesterId: curUser?.id,
+          requesterNid: curUser?.nid
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStore("cf_attendance", []);
+        setStore("cf_events_archive", []);
+        setStore("cf_active_qr", { active: false, title: "", image: "" });
+        setStore("cf_deleted_archive_ids", []);
+        alert(isAr ? "تم مسح وتصفية جميع سجلات وأرشيف الحضور بنجاح!" : "All attendance records cleared!");
+        render("keep");
+      } else {
+        alert(data.error || (isAr ? "فشل المسح." : "Failed to clear."));
+        clearAllAttBtn.disabled = false;
+        clearAllAttBtn.textContent = isAr ? '🗑️ تصفية سجل الحضور بالكامل' : '🗑️ Clear All History';
+      }
+    } catch (err) {
+      alert(isAr ? "خطأ في الاتصال بالخادم." : "Connection error.");
+      clearAllAttBtn.disabled = false;
+    }
+    return;
+  }
 });
 
 function compressAndResizeImage(file, maxDim, callback, quality = 0.90) {
@@ -4005,6 +4027,15 @@ async function handleScannedMemberQr(data, statusEl, msgEl) {
  * 10_bootstrap.js - Application Bootstrap & Cloud Polling
  * Part of HNU Students For Egypt Platform
  */
+
+// One-time auto-wipe of legacy test attendance from client localStorage
+if (localStorage.getItem('cf_att_reset_v3') !== 'done') {
+  localStorage.removeItem('cf_attendance');
+  localStorage.removeItem('cf_events_archive');
+  localStorage.removeItem('cf_active_qr');
+  localStorage.removeItem('cf_deleted_archive_ids');
+  localStorage.setItem('cf_att_reset_v3', 'done');
+}
 
 statics(); render(); syncWithCloud();
 // After first render, generate member QR if student is logged in
