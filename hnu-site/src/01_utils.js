@@ -15,7 +15,14 @@ const ICONS = { facebook: "M14 8V6c0-1 .5-1.5 1.5-1.5H17V1h-3c-3 0-4.5 2-4.5 4.5
 
 /* ---------- Templates ---------- */
 const fixPath = s => (s && !s.startsWith("http") && !s.startsWith("/") ? "/" + s : s);
-const person = (p, title, cls = "") => `<figure class="person ${cls}"><div class="avslot"><img class="av" src="${fixPath(p.photo)}" alt="${p.name}" width="160" height="160" loading="lazy" data-fb='${USER}' data-fbc="av ph"></div><figcaption><b>${p.name}</b><small>${title}</small></figcaption></figure>`;
+const person = (p, title, cls = "") => {
+  const hasBio = p.bioKey && C.bios && C.bios[p.bioKey];
+  const imgEl = `<img class="av${hasBio ? ' bio-trigger' : ''}" src="${fixPath(p.photo)}" alt="${p.name}" width="160" height="160" loading="lazy" data-fb='${USER}' data-fbc="av ph"${hasBio ? ` data-bio="${p.bioKey}" title="${lang === 'ar' ? 'اضغط لعرض السيرة الذاتية' : 'Click to view profile'}" style="cursor:pointer"` : ''}>`;
+  const wrapEl = hasBio
+    ? `<button type="button" class="av-bio-btn" data-bio="${p.bioKey}" aria-label="${lang === 'ar' ? 'سيرة ذاتية: ' + p.name : 'Profile: ' + p.name}" style="background:none;border:none;padding:0;cursor:pointer;position:relative;display:inline-block">${imgEl}<span style="position:absolute;bottom:4px;right:4px;background:linear-gradient(135deg,var(--c1),#7a4a28);color:#fff;border-radius:50%;width:26px;height:26px;font-size:.85rem;display:flex;align-items:center;justify-content:center;line-height:1;box-shadow:0 3px 10px rgba(0,0,0,.4);border:2px solid #fff;pointer-events:none" title="${lang === 'ar' ? 'السيرة الذاتية' : 'Biography'}" aria-hidden="true">📜</span></button>`
+    : `<div class="avslot">${imgEl}</div>`;
+  return `<figure class="person ${cls}"${hasBio ? ` data-bio="${p.bioKey}" style="cursor:pointer"` : ''}>${wrapEl}<figcaption><b>${p.name}</b><small>${title}</small></figcaption></figure>`;
+};
 const arrow = '<span class="arr" aria-hidden="true">→</span>';
 const list = a => a.map(x => `<li>${t(x)}</li>`).join("");
 

@@ -2,7 +2,7 @@
  * أسرة طلاب من أجل مصر — جامعة حلوان الأهلية
  * Modular Bundle: Generated from src/
  * Total Modules: 10
- * Generated: 2026-10-24T11:35:17.810Z
+ * Generated: 2026-10-24T12:01:39.140Z
  * ========================================================================= */
 
 
@@ -24,7 +24,14 @@ const ICONS = { facebook: "M14 8V6c0-1 .5-1.5 1.5-1.5H17V1h-3c-3 0-4.5 2-4.5 4.5
 
 /* ---------- Templates ---------- */
 const fixPath = s => (s && !s.startsWith("http") && !s.startsWith("/") ? "/" + s : s);
-const person = (p, title, cls = "") => `<figure class="person ${cls}"><div class="avslot"><img class="av" src="${fixPath(p.photo)}" alt="${p.name}" width="160" height="160" loading="lazy" data-fb='${USER}' data-fbc="av ph"></div><figcaption><b>${p.name}</b><small>${title}</small></figcaption></figure>`;
+const person = (p, title, cls = "") => {
+  const hasBio = p.bioKey && C.bios && C.bios[p.bioKey];
+  const imgEl = `<img class="av${hasBio ? ' bio-trigger' : ''}" src="${fixPath(p.photo)}" alt="${p.name}" width="160" height="160" loading="lazy" data-fb='${USER}' data-fbc="av ph"${hasBio ? ` data-bio="${p.bioKey}" title="${lang === 'ar' ? 'اضغط لعرض السيرة الذاتية' : 'Click to view profile'}" style="cursor:pointer"` : ''}>`;
+  const wrapEl = hasBio
+    ? `<button type="button" class="av-bio-btn" data-bio="${p.bioKey}" aria-label="${lang === 'ar' ? 'سيرة ذاتية: ' + p.name : 'Profile: ' + p.name}" style="background:none;border:none;padding:0;cursor:pointer;position:relative;display:inline-block">${imgEl}<span style="position:absolute;bottom:4px;right:4px;background:linear-gradient(135deg,var(--c1),#7a4a28);color:#fff;border-radius:50%;width:26px;height:26px;font-size:.85rem;display:flex;align-items:center;justify-content:center;line-height:1;box-shadow:0 3px 10px rgba(0,0,0,.4);border:2px solid #fff;pointer-events:none" title="${lang === 'ar' ? 'السيرة الذاتية' : 'Biography'}" aria-hidden="true">📜</span></button>`
+    : `<div class="avslot">${imgEl}</div>`;
+  return `<figure class="person ${cls}"${hasBio ? ` data-bio="${p.bioKey}" style="cursor:pointer"` : ''}>${wrapEl}<figcaption><b>${p.name}</b><small>${title}</small></figcaption></figure>`;
+};
 const arrow = '<span class="arr" aria-hidden="true">→</span>';
 const list = a => a.map(x => `<li>${t(x)}</li>`).join("");
 
@@ -2237,6 +2244,20 @@ app.addEventListener("click", async e => {
     return;
   }
 
+  // Bio modal — leader / head profile card click
+  const bioBtnEl = e.target.closest(".av-bio-btn, [data-bio]");
+  if (bioBtnEl && !e.target.closest("#bio-modal")) {
+    e.preventDefault();
+    const bioKey = bioBtnEl.dataset.bio;
+    if (bioKey) openBioModal(bioKey);
+    return;
+  }
+  // Close bio modal
+  if (e.target.closest("#bio-modal-x") || e.target === document.getElementById("bio-modal")) {
+    closeBioModal();
+    return;
+  }
+
   // QR Scanner buttons
   if (e.target.closest("#btn-open-qr-scanner")) {
     await startQrScanner();
@@ -3620,6 +3641,95 @@ async function syncWithCloud(forceRender) {
   syncGalleryWithCloud();
   syncAttendanceWithCloud();
 }
+
+/* ---------- Bio Modal (Leader / Head Profile) ---------- */
+let bioModalOpener = null;
+
+function openBioModal(bioKey) {
+  const bios = (typeof CONFIG !== 'undefined' && CONFIG.bios) || (typeof C !== 'undefined' && C.bios) || {};
+  const bio = bios[bioKey];
+  if (!bio) return;
+
+  const modal = document.getElementById('bio-modal');
+  if (!modal) return;
+
+  const isAr = lang === 'ar';
+
+  // Fill content
+  const photoEl = document.getElementById('bio-modal-photo');
+  if (photoEl) { photoEl.src = bio.photo || '/assets/images/logo.png'; photoEl.alt = bio.name?.[isAr ? 'ar' : 'en'] || ''; }
+
+  const nameEl = document.getElementById('bio-modal-name');
+  if (nameEl) nameEl.textContent = bio.name?.[isAr ? 'ar' : 'en'] || '';
+
+  const titleEl = document.getElementById('bio-modal-title-el');
+  if (titleEl) titleEl.textContent = bio.title?.[isAr ? 'ar' : 'en'] || '';
+
+  const tagsEl = document.getElementById('bio-modal-tags');
+  if (tagsEl) {
+    const tags = bio.tags?.[isAr ? 'ar' : 'en'] || [];
+    tagsEl.innerHTML = tags.map(tag => `<span>${tag}</span>`).join('');
+  }
+
+  const quoteEl = document.getElementById('bio-modal-quote');
+  const quoteWrap = document.getElementById('bio-modal-quote-wrap');
+  const quoteText = bio.quote?.[isAr ? 'ar' : 'en'] || '';
+  if (quoteWrap) {
+    if (quoteText && quoteText !== '«»' && quoteText !== '""') {
+      quoteWrap.style.display = 'block';
+      if (quoteEl) quoteEl.textContent = quoteText;
+    } else {
+      quoteWrap.style.display = 'none';
+    }
+  }
+
+  const aboutLabel = document.getElementById('bio-about-label');
+  if (aboutLabel) aboutLabel.textContent = isAr ? 'نبذة شخصية' : 'About';
+
+  const aboutEl = document.getElementById('bio-modal-about');
+  if (aboutEl) aboutEl.textContent = bio.about?.[isAr ? 'ar' : 'en'] || (isAr ? 'سيتم إضافة السيرة الذاتية قريباً.' : 'Bio coming soon.');
+
+  const achLabel = document.getElementById('bio-ach-label');
+  if (achLabel) achLabel.textContent = isAr ? 'الإنجازات والمسيرة' : 'Achievements & Journey';
+
+  const achEl = document.getElementById('bio-modal-ach');
+  if (achEl) {
+    const achs = bio.achievements?.[isAr ? 'ar' : 'en'] || [];
+    achEl.innerHTML = achs.length > 0
+      ? achs.map(a => `<li>${a}</li>`).join('')
+      : `<li>${isAr ? 'قريباً — سيتم إضافة الإنجازات' : 'Coming soon'}</li>`;
+  }
+
+  bioModalOpener = document.activeElement;
+  modal.hidden = false;
+  document.body.style.overflow = 'hidden';
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => { modal.style.opacity = '1'; modal.classList.add('show'); });
+  });
+
+  const closeBtn = document.getElementById('bio-modal-x');
+  if (closeBtn) closeBtn.focus();
+}
+
+function closeBioModal() {
+  const modal = document.getElementById('bio-modal');
+  if (!modal) return;
+  modal.style.opacity = '0';
+  modal.classList.remove('show');
+  setTimeout(() => {
+    modal.hidden = true;
+    document.body.style.overflow = '';
+    if (bioModalOpener && typeof bioModalOpener.focus === 'function') bioModalOpener.focus();
+  }, 250);
+}
+
+// Keyboard: Escape closes bio modal
+addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('bio-modal');
+    if (modal && !modal.hidden) closeBioModal();
+  }
+});
 
 
 /* >>> MODULE: 09_scanner.js <<< */

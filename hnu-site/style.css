@@ -149,6 +149,21 @@ footer nav{display:flex;flex-wrap:wrap;gap:4px 16px;justify-content:center}foote
 .av-zoom-btn:hover{transform:scale(1.18);filter:brightness(1.08)}
 .av-zoom-btn:active{transform:scale(.92)}
 
+/* bio modal */
+#bio-modal{transition:opacity .25s}
+#bio-modal[hidden]{display:none!important}
+#bio-modal.show{opacity:1!important}
+#bio-modal-box{transform:translateY(20px) scale(.97);transition:transform .28s cubic-bezier(.2,.8,.2,1)}
+#bio-modal.show #bio-modal-box{transform:none}
+.av-bio-btn{transition:transform .18s;border-radius:50%;display:inline-flex;flex-direction:column;align-items:center}
+.av-bio-btn:hover img{transform:scale(1.08) brightness(1.06);filter:brightness(1.06)}
+.av-bio-btn img{transition:transform .2s,filter .2s;border-radius:50%}
+.av-bio-btn:focus-visible{outline:3px solid var(--c1);outline-offset:4px}
+#bio-modal-ach li{display:flex;align-items:flex-start;gap:10px;background:var(--bei);border-radius:12px;padding:12px 14px;color:var(--c1);font-size:.92rem;line-height:1.6;text-align:right}
+#bio-modal-ach li::before{content:"✦";color:var(--g2);font-size:.8rem;margin-top:3px;flex-shrink:0}
+#bio-modal-tags span{background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.32);border-radius:999px;padding:3px 13px;font-size:.78rem;font-weight:600;backdrop-filter:blur(4px)}
+@media(max-width:480px){#bio-modal-box{border-radius:18px}#bio-modal .bio-hd{padding:28px 18px 18px}#bio-modal .bio-bd{padding:18px 18px 24px}}
+
 /* page transitions */
 #app{opacity:1;transform:none;transition:opacity .22s cubic-bezier(.2,.8,.2,1),transform .22s cubic-bezier(.2,.8,.2,1)}
 #app.out{opacity:0;transform:translateY(8px)}

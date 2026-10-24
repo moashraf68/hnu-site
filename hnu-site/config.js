@@ -29,8 +29,74 @@ const CONFIG = {
   },
   leadership: {
     supervisor: { name: "Dr. Mohamed Helmy", photo: "/assets/images/supervisor.jpg", title: { ar: "رائد الأسرة", en: "Supervisor" } },
-    bigBrother: { name: "Hassan El-Gendy", photo: "/assets/images/big-brother.jpg", title: { ar: "الأخ الأكبر", en: "Big Brother" } },
-    viceBigBrother: { name: "Omar Abdelazem", photo: "/assets/images/vice-big-brother.jpg", title: { ar: "نائب الأخ الأكبر", en: "Vice Big Brother" } }
+    bigBrother: { name: "Hassan El-Gendy", photo: "/assets/images/big-brother.jpg", title: { ar: "الأخ الأكبر", en: "Big Brother" }, bioKey: "hassan" },
+    viceBigBrother: { name: "Omar Abdelazem", photo: "/assets/images/vice-big-brother.jpg", title: { ar: "نائب الأخ الأكبر", en: "Vice Big Brother" }, bioKey: "omar" }
+  },
+  /* ===== بيانات السير الذاتية للقادة — يتم تحديثها لاحقاً ===== */
+  bios: {
+    hassan: {
+      name: { ar: "حسن الجندي", en: "Hassan El-Gendy" },
+      title: { ar: "الأخ الأكبر — أسرة طلاب من أجل مصر HNU", en: "Big Brother — For Egypt Family HNU" },
+      photo: "/assets/images/big-brother.jpg",
+      quote: { ar: "«قريباً»", en: "«Coming Soon»" },
+      tags: { ar: ["الأخ الأكبر", "قيادة"], en: ["Big Brother", "Leadership"] },
+      achievements: { ar: ["قريباً — سيتم إضافة الإنجازات"], en: ["Coming Soon"] },
+      about: { ar: "سيتم إضافة السيرة الذاتية قريباً.", en: "Bio coming soon." }
+    },
+    omar: {
+      name: { ar: "عمر عبدالعظيم", en: "Omar Abdelazem" },
+      title: { ar: "نائب الأخ الأكبر — أسرة طلاب من أجل مصر HNU", en: "Vice Big Brother — For Egypt Family HNU" },
+      photo: "/assets/images/vice-big-brother.jpg",
+      quote: { ar: "«قريباً»", en: "«Coming Soon»" },
+      tags: { ar: ["نائب الأخ الأكبر", "قيادة"], en: ["Vice Big Brother", "Leadership"] },
+      achievements: { ar: ["قريباً — سيتم إضافة الإنجازات"], en: ["Coming Soon"] },
+      about: { ar: "سيتم إضافة السيرة الذاتية قريباً.", en: "Bio coming soon." }
+    },
+    eslam: {
+      name: { ar: "إسلام الدالي", en: "Eslam Eldaly" },
+      title: { ar: "رئيس لجنة التنظيم OC — أسرة طلاب من أجل مصر HNU", en: "Head of OC — For Egypt Family HNU" },
+      photo: "/assets/images/oc-head.jpg",
+      quote: { ar: "«قريباً»", en: "«Coming Soon»" },
+      tags: { ar: ["رئيس OC", "تنظيم"], en: ["OC Head", "Operations"] },
+      achievements: { ar: ["قريباً — سيتم إضافة الإنجازات"], en: ["Coming Soon"] },
+      about: { ar: "سيتم إضافة السيرة الذاتية قريباً.", en: "Bio coming soon." }
+    },
+    kerolos: {
+      name: { ar: "كيرلس فخري", en: "Kerolos Fakhry" },
+      title: { ar: "نائب رئيس OC — أسرة طلاب من أجل مصر HNU", en: "Vice Head of OC — For Egypt Family HNU" },
+      photo: "/assets/images/oc-vice-2c.jpg",
+      quote: { ar: "«قريباً»", en: "«Coming Soon»" },
+      tags: { ar: ["نائب OC", "تنظيم"], en: ["OC Vice", "Operations"] },
+      achievements: { ar: ["قريباً — سيتم إضافة الإنجازات"], en: ["Coming Soon"] },
+      about: { ar: "سيتم إضافة السيرة الذاتية قريباً.", en: "Bio coming soon." }
+    },
+    ashraf: {
+      name: { ar: "محمد أشرف", en: "Mohamed Ashraf" },
+      title: { ar: "المشرف العام — أسرة طلاب من أجل مصر HNU", en: "Super Admin — For Egypt Family HNU" },
+      photo: "/assets/images/oc-vice-1.jpg",
+      quote: { ar: "«قريباً»", en: "«Coming Soon»" },
+      tags: { ar: ["المشرف العام", "OC", "قيادة"], en: ["Super Admin", "OC", "Leadership"] },
+      achievements: { ar: ["قريباً — سيتم إضافة الإنجازات"], en: ["Coming Soon"] },
+      about: { ar: "سيتم إضافة السيرة الذاتية قريباً.", en: "Bio coming soon." }
+    },
+    rawan: {
+      name: { ar: "روان تامر", en: "Rawan Tamer" },
+      title: { ar: "رئيس لجنة الموارد البشرية HR — أسرة طلاب من أجل مصر HNU", en: "Head of HR — For Egypt Family HNU" },
+      photo: "/assets/images/hr-head.jpg",
+      quote: { ar: "«قريباً»", en: "«Coming Soon»" },
+      tags: { ar: ["رئيس HR", "الموارد البشرية"], en: ["HR Head", "Human Resources"] },
+      achievements: { ar: ["قريباً — سيتم إضافة الإنجازات"], en: ["Coming Soon"] },
+      about: { ar: "سيتم إضافة السيرة الذاتية قريباً.", en: "Bio coming soon." }
+    },
+    ziad: {
+      name: { ar: "زياد طارق", en: "Ziad Tarek" },
+      title: { ar: "رئيس لجنة العلاقات العامة PR — أسرة طلاب من أجل مصر HNU", en: "Head of PR — For Egypt Family HNU" },
+      photo: "/assets/images/pr-head.jpg",
+      quote: { ar: "«قريباً»", en: "«Coming Soon»" },
+      tags: { ar: ["رئيس PR", "العلاقات العامة"], en: ["PR Head", "Public Relations"] },
+      achievements: { ar: ["قريباً — سيتم إضافة الإنجازات"], en: ["Coming Soon"] },
+      about: { ar: "سيتم إضافة السيرة الذاتية قريباً.", en: "Bio coming soon." }
+    }
   },
   // الترتيب الإجباري: OC → HR → Media → PR
   committeeOrder: ["oc", "hr", "media", "pr"],
@@ -50,8 +116,8 @@ const CONFIG = {
         { ar: "خبرة في إدارة الفعاليات", en: "Event Management Experience" }, { ar: "القيادة", en: "Leadership" }, { ar: "إدارة الفريق", en: "Team Management" },
         { ar: "تواصل حقيقي مع الناس", en: "Real-world Communication" }, { ar: "مهارات تنظيمية", en: "Organizational Skills" }
       ],
-      head: { name: "Eslam Eldaly", photo: "/assets/images/oc-head.jpg" },
-      vices: [{ name: "Mohamed Ashraf", photo: "/assets/images/oc-vice-1.jpg" }, { name: "Kerolos Fakhry", photo: "/assets/images/oc-vice-2c.jpg" }],
+      head: { name: "Eslam Eldaly", photo: "/assets/images/oc-head.jpg", bioKey: "eslam" },
+      vices: [{ name: "Mohamed Ashraf", photo: "/assets/images/oc-vice-1.jpg", bioKey: "ashraf" }, { name: "Kerolos Fakhry", photo: "/assets/images/oc-vice-2c.jpg", bioKey: "kerolos" }],
       links: { facebook: "" } },
     hr: { icon: "🧠", code: "HR", ar: "الموارد البشرية", en: "Human Resources",
       intro: { ar: "استقطاب، تأهيل، وتطوير كفاءات الأسرة.", en: "Talent acquisition, onboarding, and team development." },
@@ -75,7 +141,7 @@ const CONFIG = {
         { ar: "إدارة وقيادة فرق العمل (Team Management)", en: "Team Management" },
         { ar: "مهارات التقييم وتحليل الأداء (Evaluation Skills)", en: "Evaluation Skills" }
       ],
-      head: { name: "Rawan Tamer", photo: "/assets/images/hr-head.jpg" }, vices: [], links: { facebook: "" } },
+      head: { name: "Rawan Tamer", photo: "/assets/images/hr-head.jpg", bioKey: "rawan" }, vices: [], links: { facebook: "" } },
     media: { icon: "🎬", code: "Media", ar: "الميديا", en: "Media Committee",
       intro: { ar: "عين الأسرة.", en: "The eyes of the family." },
       desc: { ar: "هي عين الأسرة، بتوثّق كل الأنشطة والفعاليات وتظهرها بشكل احترافي.", en: "The eyes of the family — it documents every activity and event and presents it professionally." },
@@ -104,7 +170,7 @@ const CONFIG = {
         { ar: "مهارات المبيعات", en: "Sales Skills" }, { ar: "التفاوض", en: "Negotiation" }, { ar: "التواصل", en: "Communication" },
         { ar: "علاقات الأعمال", en: "Business Relations" }, { ar: "كتابة العروض", en: "Proposal Writing" }
       ],
-      head: { name: "Ziad Tarek", photo: "/assets/images/pr-head.jpg" }, vices: [{ name: "Maryam Tamer", photo: "/assets/images/pr-vice-1.jpg" }], links: { facebook: "" } }
+      head: { name: "Ziad Tarek", photo: "/assets/images/pr-head.jpg", bioKey: "ziad" }, vices: [{ name: "Maryam Tamer", photo: "/assets/images/pr-vice-1.jpg" }], links: { facebook: "" } }
   },
   // الترتيب الإجباري: إفطار رمضان → التقديمات → حفل التخرج
   events: [
