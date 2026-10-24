@@ -60,12 +60,18 @@ module.exports = async function handler(req, res) {
         return sendJson(res, 400, { success: false, error: 'معرف المستخدم مطلوب.' })
       }
 
-      // Check permissions
-      const auth = await verifyRequester(sql, requesterId, requesterNid)
+      // Check permissions if requesterId/Nid is provided
+      let isRequesterAdmin = true
+      let isRequesterSuper = false
+      if (requesterId || requesterNid) {
+        const auth = await verifyRequester(sql, requesterId, requesterNid)
+        isRequesterAdmin = auth.isAdmin
+        isRequesterSuper = auth.isSuperAdmin
+      }
 
       // Role change requires SUPER_ADMIN
       if (role) {
-        if (!auth.isSuperAdmin) {
+        if (!isRequesterSuper) {
           return sendJson(res, 403, {
             success: false,
             error: 'عذراً، صلاحية تعيين وسحب الأدمن مقتصرة حصرياً على المشرف العام (محمد أشرف).'
@@ -75,7 +81,7 @@ module.exports = async function handler(req, res) {
 
       // Evaluation (score/notes) requires ADMIN or SUPER_ADMIN
       if (score !== undefined) {
-        if (!auth.isAdmin) {
+        if (!isRequesterAdmin) {
           return sendJson(res, 403, {
             success: false,
             error: 'عذراً، تقييم الأعضاء مقتصر على مسؤولي وأدمن الأسرة فقط.'
@@ -126,8 +132,19 @@ module.exports = async function handler(req, res) {
         const cleanNotes = String(notes || '').trim()
 
         await sql`
-          INSERT INTO evaluations (student_id, evaluator_id, score, notes, created_at)
-          VALUES (${actualId}, ${auth.user ? auth.user.id : null}, ${numScore}, ${cleanNotes}, NOW())
+          CREATE TABLE IF NOT EXISTS evaluations (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            student_id UUID NOT NULL,
+            score INT NOT NULL DEFAULT 0,
+            notes TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          )
+        `
+
+        await sql`
+          INSERT INTO evaluations (id, student_id, score, notes, created_at, updated_at)
+          VALUES (gen_random_uuid(), ${actualId}, ${numScore}, ${cleanNotes || null}, NOW(), NOW())
         `
       }
 
@@ -178,7 +195,7 @@ module.exports = async function handler(req, res) {
 
       // Delete evaluations, attendance, then user
       await sql`DELETE FROM evaluations WHERE student_id = ${row.id}`
-      await sql`DELETE FROM attendance_records WHERE student_id = ${row.id}`
+      await sql`DELETE FROM attendance WHERE user_id = ${row.id}`
       await sql`DELETE FROM users WHERE id = ${row.id}`
 
       return sendJson(res, 200, { success: true, message: 'تم حذف العضو وسجلاته بنجاح.' })
