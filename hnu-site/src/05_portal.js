@@ -88,58 +88,62 @@ function studentView(curUser) {
       </div>
     ` : ''}
 
-    <!-- 1. Official Digital Member ID & QR Code Section -->
-    <div class="admin-card" style="margin-bottom:24px;border:2px solid var(--g);background:#fff">
-      <div class="admin-card-head" style="align-items:center">
-        <div>
-          <h3>🪪 ${isAr ? 'كود الـ QR وكارنيه الحضور الرسمي' : 'Official Member ID & Personal QR Code'}</h3>
-          <p style="color:var(--c2);font-size:.85rem;margin:3px 0 0">
-            ${isAr ? 'رمز الحضور الدائم الخاص بك في الأسرة — أرِه للأدمن في أي اجتماع لمسحه وتسجيل حضورك تلقائياً.' : 'Your permanent digital member QR code. Scanned by admins to record attendance.'}
-          </p>
-        </div>
-        <span class="sbadge ${activeQr.active ? 'act' : 'pen'}">
-          ${activeQr.active ? (isAr ? '● جلسة حضور نشطة' : '● Live Session Active') : (isAr ? '○ كودك جاهز للمسح' : '○ Ready to Scan')}
-        </span>
-      </div>
-
-      <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:16px 10px">
-        <!-- Personal QR Canvas -->
-        <div style="background:#fff;padding:14px;border-radius:18px;border:3px solid var(--g2);box-shadow:0 8px 24px rgba(59,38,22,.08);display:inline-block">
-          <canvas id="member-qr-canvas" style="display:block;margin:0 auto;width:210px;height:210px;border-radius:10px"></canvas>
+    <!-- 1. Attendance QR Code Section (ONLY APPEARS WHEN ADMIN STARTS SESSION!) -->
+    ${activeQr.active ? `
+      <div class="admin-card" style="margin-bottom:24px;border:2.5px solid var(--g2);background:#fff;box-shadow:0 12px 36px rgba(59,38,22,.08)">
+        <div class="admin-card-head" style="align-items:center">
+          <div>
+            <h3>📱 ${isAr ? 'كود تسجيل الحضور الرسمي' : 'Official Attendance QR Code'}</h3>
+            <p style="color:var(--c2);font-size:.85rem;margin:3px 0 0">
+              ${isAr ? `جلسة حضور نشطة الآن: <b>${activeQr.title}</b> — أرِ هذا الكود لكاميرا الأدمن لتسجيل حضورك.` : `Live session: <b>${activeQr.title}</b> — Show this QR to the admin to scan.`}
+            </p>
+          </div>
+          <span class="sbadge act" style="font-size:.85rem;padding:4px 14px">
+            ${isAr ? '● جلسة حضور نشطة الآن' : '● Live Session Active'}
+          </span>
         </div>
 
-        <div style="margin-top:14px">
-          <h4 style="color:var(--c1);font-size:1.15rem;margin:0 0 4px">${curUser.name}</h4>
-          <p style="margin:0;font-size:.9rem;color:var(--c2)">
-            <span class="sbadge act" style="font-size:.8rem;padding:2px 10px">${getComName(curUser.com)}</span>
-            • <b>${getCollegeName(curUser.college)}</b> (${getYearName(curUser.year)})
-          </p>
-          <p style="margin:6px 0 0;font-size:.85rem;color:var(--c2)">
-            ${isAr ? 'الرقم القومي:' : 'National ID:'} <code>${maskNid(curUser.nid)}</code>
-          </p>
-        </div>
-
-        <!-- Attendance Status indicator -->
-        <div style="margin-top:14px;width:100%;max-width:440px">
-          ${activeQr.active ? `
-            ${alreadyAttended ? `
-              <div style="padding:12px 20px;background:#e6f4ea;color:#137333;font-weight:700;border-radius:14px;border:1.5px solid #a8dab5">
-                <span style="font-size:1.2rem;vertical-align:middle">✅</span> ${isAr ? `تم تسجيل حضورك في "${activeQr.title}" بنجاح!` : `Attendance verified for "${activeQr.title}"!`}
-              </div>
-            ` : `
-              <div style="padding:12px 20px;background:#fff3cd;color:#856404;font-weight:700;border-radius:14px;border:1.5px solid #ffeeba">
-                <span style="font-size:1.1rem">⏳</span> <b>${isAr ? 'جلسة حضور نشطة:' : 'Live Session:'} "${activeQr.title}"</b><br>
-                <span style="font-size:.85rem;font-weight:500;display:inline-block;margin-top:3px">${isAr ? 'أرِ هذا الكود لكاميرا الأدمن ليتم تسجيل حضورك فوراً في الكشف.' : 'Show this QR to the admin camera to record attendance.'}</span>
-              </div>
-            `}
+        <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:16px 10px">
+          ${alreadyAttended ? `
+            <div style="padding:24px 28px;background:#e6f4ea;color:#137333;font-weight:700;border-radius:18px;border:2px solid #a8dab5;margin:8px 0;max-width:440px;width:100%">
+              <div style="font-size:2.8rem;margin-bottom:8px">✅</div>
+              <div style="font-size:1.15rem;margin-bottom:4px">${isAr ? `تم تسجيل حضورك في "${activeQr.title}" بنجاح!` : `Your attendance for "${activeQr.title}" has been recorded!`}</div>
+              <p style="font-size:.85rem;color:#1e4620;margin:0;font-weight:500">${isAr ? 'تم توثيق حضورك رسمياً في كشف الفعالية وقاعدة البيانات.' : 'Your attendance is officially recorded in family database.'}</p>
+            </div>
           ` : `
-            <div style="padding:10px 18px;background:var(--bei);color:var(--c1);font-weight:600;border-radius:14px;font-size:.88rem">
-              ✨ ${isAr ? 'كود الحضور الشخصي الدائم الخاص بك معتمد لجميع الاجتماعات والفعاليات.' : 'Your permanent personal QR code is ready for all meetings and events.'}
+            <!-- Personal QR Canvas (generated client-side only during active session) -->
+            <div style="background:#fff;padding:16px;border-radius:20px;border:3px solid var(--g2);box-shadow:0 10px 28px rgba(59,38,22,.12);display:inline-block">
+              <canvas id="member-qr-canvas" style="display:block;margin:0 auto;width:210px;height:210px;border-radius:10px"></canvas>
+            </div>
+
+            <div style="margin-top:14px">
+              <h4 style="color:var(--c1);font-size:1.15rem;margin:0 0 4px">${curUser.name}</h4>
+              <p style="margin:0;font-size:.9rem;color:var(--c2)">
+                <span class="sbadge act" style="font-size:.8rem;padding:2px 10px">${getComName(curUser.com)}</span>
+                • <b>${getCollegeName(curUser.college)}</b> (${getYearName(curUser.year)})
+              </p>
+            </div>
+
+            <div style="margin-top:14px;width:100%;max-width:440px">
+              <div style="padding:12px 20px;background:#fff3cd;color:#856404;font-weight:700;border-radius:14px;border:1.5px solid #ffeeba;font-size:.9rem">
+                ⏳ ${isAr ? 'في انتظار مسح الأدمن للـ QR الخاص بك...' : 'Waiting for admin to scan your QR...'}
+              </div>
             </div>
           `}
         </div>
       </div>
-    </div>
+    ` : `
+      <div class="admin-card" style="margin-bottom:24px;border:2px dashed var(--bei);background:var(--bg);text-align:center;padding:34px 20px;border-radius:20px">
+        <div style="font-size:2.8rem;margin-bottom:8px">📴</div>
+        <h3 style="color:var(--c1);font-size:1.2rem;margin:0 0 6px">${isAr ? 'لا توجد جلسة حضور نشطة حالياً' : 'No Active Attendance Session'}</h3>
+        <p style="color:var(--c2);font-size:.9rem;max-width:480px;margin:0 auto;line-height:1.7">
+          ${isAr ? 'سيظهر كود الـ QR الخاص بك هنا تلقائياً فور بدء الأدمن لجلسة تسجيل الحضور في أي اجتماع أو فعالية.' : 'Your personal attendance QR code will appear here automatically when the admin starts an attendance session.'}
+        </p>
+        <span class="sbadge pen" style="margin-top:16px;display:inline-block;padding:5px 16px;font-size:.85rem">
+          ${isAr ? '○ في انتظار بدء جلسة الحضور' : '○ Standby for Live Session'}
+        </span>
+      </div>
+    `}
 
     <!-- 2. Two Main Cards: Membership Info & Events Attended (NO EVALUATION SHOWN!) -->
     <div class="two" style="margin-bottom:24px">

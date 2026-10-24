@@ -10,6 +10,9 @@ function generateMemberQr(curUser) {
   const canvas = document.getElementById('member-qr-canvas');
   if (!canvas || !curUser) return;
 
+  const activeQr = getStore('cf_active_qr', { active: false });
+  if (!activeQr.active) return;
+
   const payload = JSON.stringify({
     sid: curUser.id,
     nid: curUser.nid,
