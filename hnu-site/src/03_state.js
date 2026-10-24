@@ -134,9 +134,11 @@ let lockoutSecondsRemaining = 0;
 
 function maskNid(id) { return id && id.length >= 10 ? id.slice(0, 4) + "******" + id.slice(-4) : id; }
 function getScoreBadge(s) {
-  if (s >= 8) return `<span class="ebadge high">${s} / 10 (ممتاز)</span>`;
-  if (s >= 5) return `<span class="ebadge med">${s} / 10 (جيد)</span>`;
-  return `<span class="ebadge low">${s} / 10 (بحاجة لتطوير)</span>`;
+  const num = Number(s) || 0;
+  const displayScore = Number.isInteger(num) ? num : parseFloat(num.toFixed(2));
+  if (num >= 8) return `<span class="ebadge high">${displayScore} / 10 (ممتاز)</span>`;
+  if (num >= 5) return `<span class="ebadge med">${displayScore} / 10 (جيد)</span>`;
+  return `<span class="ebadge low">${displayScore} / 10 (بحاجة لتطوير)</span>`;
 }
 
 function portalView() {

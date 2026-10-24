@@ -137,19 +137,25 @@ module.exports = async function handler(req, res) {
 
       // 3. Save evaluation record if score provided
       if (score !== undefined) {
-        const numScore = Math.min(100, Math.max(0, parseInt(score, 10) || 0))
+        const cleanScoreStr = String(score).trim().replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[،,]/g, '.')
+        const numScore = Math.min(100, Math.max(0, parseFloat(cleanScoreStr) || 0))
         const cleanNotes = String(notes || '').trim()
 
         await sql`
           CREATE TABLE IF NOT EXISTS evaluations (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             student_id UUID NOT NULL,
-            score INT NOT NULL DEFAULT 0,
+            score NUMERIC(5, 2) NOT NULL DEFAULT 0,
             notes TEXT,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
           )
         `
+
+        // Ensure score column supports decimals
+        try {
+          await sql`ALTER TABLE evaluations ALTER COLUMN score TYPE NUMERIC(5, 2)`
+        } catch (_) {}
 
         await sql`
           INSERT INTO evaluations (id, student_id, score, notes, created_at, updated_at)

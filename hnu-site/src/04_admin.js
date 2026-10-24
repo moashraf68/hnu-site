@@ -503,7 +503,7 @@ function adminView(curUser, rawUsers) {
               <input type="hidden" name="studentId" value="${selectedMember.id}">
               <div class="form-row">
                 <label>${isAr ? 'درجة التقييم الحالية (من 0 إلى 10)' : 'Evaluation Score (0 to 10)'}
-                  <input name="score" type="number" min="0" max="10" step="0.1" value="${selectedMember.score !== undefined ? selectedMember.score : 9.0}" required style="font-weight:800;font-size:1.15rem;color:var(--c1)">
+                  <input name="score" type="number" min="0" max="10" step="any" value="${selectedMember.score !== undefined ? selectedMember.score : 9.0}" required style="font-weight:800;font-size:1.15rem;color:var(--c1)">
                 </label>
                 <div style="display:flex;flex-direction:column;justify-content:center;font-size:.82rem;color:var(--c2);line-height:1.5;background:var(--bei);padding:10px 14px;border-radius:12px">
                   <span>🟢 8.0 - 10: ممتاز (High Performer)</span>

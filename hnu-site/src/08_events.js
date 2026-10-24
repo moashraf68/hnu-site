@@ -987,7 +987,11 @@ app.addEventListener("submit", async e => {
   if (evalForm) {
     e.preventDefault();
     const sid = evalForm.studentId.value;
-    const score = parseFloat(evalForm.score.value);
+    const rawScoreStr = String(evalForm.score.value || '').trim()
+      .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+      .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+      .replace(/[،,]/g, '.');
+    const score = parseFloat(rawScoreStr) || 0;
     const notes = evalForm.notes.value.trim();
     const users = getUsers();
     const s = users.find(u => u.id === sid);

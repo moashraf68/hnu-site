@@ -2,7 +2,7 @@
  * أسرة طلاب من أجل مصر — جامعة حلوان الأهلية
  * Modular Bundle: Generated from src/
  * Total Modules: 10
- * Generated: 2026-10-24T15:04:04.844Z
+ * Generated: 2026-10-24T15:22:42.177Z
  * ========================================================================= */
 
 
@@ -361,9 +361,11 @@ let lockoutSecondsRemaining = 0;
 
 function maskNid(id) { return id && id.length >= 10 ? id.slice(0, 4) + "******" + id.slice(-4) : id; }
 function getScoreBadge(s) {
-  if (s >= 8) return `<span class="ebadge high">${s} / 10 (ممتاز)</span>`;
-  if (s >= 5) return `<span class="ebadge med">${s} / 10 (جيد)</span>`;
-  return `<span class="ebadge low">${s} / 10 (بحاجة لتطوير)</span>`;
+  const num = Number(s) || 0;
+  const displayScore = Number.isInteger(num) ? num : parseFloat(num.toFixed(2));
+  if (num >= 8) return `<span class="ebadge high">${displayScore} / 10 (ممتاز)</span>`;
+  if (num >= 5) return `<span class="ebadge med">${displayScore} / 10 (جيد)</span>`;
+  return `<span class="ebadge low">${displayScore} / 10 (بحاجة لتطوير)</span>`;
 }
 
 function portalView() {
@@ -1024,7 +1026,7 @@ function adminView(curUser, rawUsers) {
               <input type="hidden" name="studentId" value="${selectedMember.id}">
               <div class="form-row">
                 <label>${isAr ? 'درجة التقييم الحالية (من 0 إلى 10)' : 'Evaluation Score (0 to 10)'}
-                  <input name="score" type="number" min="0" max="10" step="0.1" value="${selectedMember.score !== undefined ? selectedMember.score : 9.0}" required style="font-weight:800;font-size:1.15rem;color:var(--c1)">
+                  <input name="score" type="number" min="0" max="10" step="any" value="${selectedMember.score !== undefined ? selectedMember.score : 9.0}" required style="font-weight:800;font-size:1.15rem;color:var(--c1)">
                 </label>
                 <div style="display:flex;flex-direction:column;justify-content:center;font-size:.82rem;color:var(--c2);line-height:1.5;background:var(--bei);padding:10px 14px;border-radius:12px">
                   <span>🟢 8.0 - 10: ممتاز (High Performer)</span>
@@ -3214,7 +3216,11 @@ app.addEventListener("submit", async e => {
   if (evalForm) {
     e.preventDefault();
     const sid = evalForm.studentId.value;
-    const score = parseFloat(evalForm.score.value);
+    const rawScoreStr = String(evalForm.score.value || '').trim()
+      .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+      .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+      .replace(/[،,]/g, '.');
+    const score = parseFloat(rawScoreStr) || 0;
     const notes = evalForm.notes.value.trim();
     const users = getUsers();
     const s = users.find(u => u.id === sid);
