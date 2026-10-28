@@ -8,8 +8,8 @@ function printAttendanceReport() {
   const isAr = lang === "ar";
   const activeQr = getStore("cf_active_qr", { active: false, title: "الفعالية" });
   const attendances = getStore("cf_attendance", []);
-  const eventTitle = activeQr.title || (attendances[0] ? attendances[0].event : (isAr ? "فعالية الأسرة" : "Family Event"));
-  const filtered = attendances.filter(a => a.event === eventTitle);
+  const eventTitle = activeQr.title || (attendances[0] ? (attendances[0].event || attendances[0].eventTitle) : (isAr ? "فعالية الأسرة" : "Family Event"));
+  const filtered = attendances.filter(a => (a.event || a.eventTitle) === eventTitle);
 
   const printWin = window.open('', '_blank');
   if (!printWin) { alert(isAr ? 'يرجى السماح بالنوافذ المنبثقة للطباعة' : 'Please allow popups to print'); return; }
@@ -56,10 +56,10 @@ function printAttendanceReport() {
           ${filtered.length === 0 ? `<tr><td colspan="5" style="text-align:center">${isAr ? 'لا يوجد حضور مسجل لهذه الفعالية بعد.' : 'No attendance recorded yet.'}</td></tr>` : filtered.map((a, i) => `
             <tr>
               <td>${i + 1}</td>
-              <td><b>${a.studentName}</b></td>
+              <td><b>${a.studentName || a.name || '—'}</b></td>
               <td>${getCollegeName(a.college || '—')}</td>
-              <td>${a.time}</td>
-              <td>${a.date}</td>
+              <td>${a.time || '—'}</td>
+              <td>${a.date || '—'}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -81,7 +81,7 @@ function exportAttendanceCSV() {
   const attendances = getStore("cf_attendance", []);
   let csv = "\uFEFFم,اسم الطالب,الكلية,الفعالية,وقت الحضور,تاريخ الحضور\n";
   attendances.forEach((a, i) => {
-    csv += `"${i + 1}","${a.studentName}","${getCollegeName(a.college || '')}","${a.event}","${a.time}","${a.date}"\n`;
+    csv += `"${i + 1}","${a.studentName || a.name || ''}","${getCollegeName(a.college || '')}","${a.event || a.eventTitle || ''}","${a.time || ''}","${a.date || ''}"\n`;
   });
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const link = document.createElement("a");
@@ -148,7 +148,7 @@ function printStudentsDirectory() {
               <td>${getYearName(u.year)}</td>
               <td>${getComName(u.com)}</td>
               <td>${u.phone || '—'}</td>
-              <td>${u.role === 'ADMIN' ? (isAr ? 'أدمن 👑' : 'Admin 👑') : (isAr ? 'عضو' : 'Member')}</td>
+              <td>${u.role === 'ADMIN' ? (isAr ? 'أدمن' : 'Admin') : (isAr ? 'عضو' : 'Member')}</td>
               <td>${u.createdAt}</td>
             </tr>
           `).join('')}

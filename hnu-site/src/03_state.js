@@ -130,14 +130,14 @@ function portalView() {
   return `<section class="portal-sec"><div class="wrap">
     <div class="portal-card" style="${isReg ? 'max-width:640px' : 'max-width:520px'}">
       <div class="portal-head">
-        <div class="pico">${isReg ? '📝' : '🔐'}</div>
+        <div class="pico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>
         <h1>${isReg ? (isAr ? 'إنشاء حساب جديد بالأسرة' : 'Create Family Account') : S("portal_t")}</h1>
         <p>${isAr ? 'أسرة طلاب من أجل مصر — جامعة حلوان الأهلية' : 'Students For Egypt — Helwan National University'}</p>
       </div>
 
       <div class="portal-tabs">
-        <button type="button" class="ptab-btn ${!isReg ? 'active' : ''}" id="btn-show-login">🔐 ${isAr ? 'تسجيل الدخول' : 'Sign In'}</button>
-        <button type="button" class="ptab-btn ${isReg ? 'active' : ''}" id="btn-show-register">📝 ${isAr ? 'إنشاء حساب جديد' : 'Register Account'}</button>
+        <button type="button" class="ptab-btn ${!isReg ? 'active' : ''}" id="btn-show-login">${isAr ? 'تسجيل الدخول' : 'Sign In'}</button>
+        <button type="button" class="ptab-btn ${isReg ? 'active' : ''}" id="btn-show-register">${isAr ? 'إنشاء حساب جديد' : 'Register Account'}</button>
       </div>
 
       ${isReg ? registerFormHtml() : loginFormHtml()}
@@ -160,7 +160,7 @@ function loginFormHtml() {
       <label>${isAr ? 'كلمة المرور' : 'Password'}
         <div class="pw-wrap">
           <input name="pw" type="password" placeholder="${isAr ? 'أدخل كلمة المرور الخاصة بك...' : 'Enter your password...'}" required autocomplete="current-password">
-          <button type="button" class="pw-toggle-btn" tabindex="-1" aria-label="Toggle password visibility">👁️</button>
+          <button type="button" class="pw-toggle-btn" tabindex="-1" aria-label="Toggle password visibility"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
         </div>
       </label>
       <button class="btn big" type="submit" style="width:100%;margin-top:10px">${isAr ? 'تسجيل الدخول' : 'Sign In'}</button>
@@ -196,13 +196,13 @@ function registerFormHtml() {
         <label>${isAr ? 'كلمة المرور (6 أحرف أو أكثر)' : 'Password (6+ characters)'}
           <div class="pw-wrap">
             <input name="pw" type="password" minlength="6" placeholder="${isAr ? 'اختر كلمة مرور قوية...' : 'Choose a strong password...'}" required>
-            <button type="button" class="pw-toggle-btn" tabindex="-1" aria-label="Toggle password visibility">👁️</button>
+            <button type="button" class="pw-toggle-btn" tabindex="-1" aria-label="Toggle password visibility"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
           </div>
         </label>
         <label>${isAr ? 'تأكيد كلمة المرور' : 'Confirm Password'}
           <div class="pw-wrap">
             <input name="pwConfirm" type="password" minlength="6" placeholder="${isAr ? 'أعد كتابة كلمة المرور...' : 'Re-enter your password...'}" required>
-            <button type="button" class="pw-toggle-btn" tabindex="-1" aria-label="Toggle password visibility">👁️</button>
+            <button type="button" class="pw-toggle-btn" tabindex="-1" aria-label="Toggle password visibility"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
           </div>
         </label>
       </div>
@@ -239,7 +239,7 @@ function registerFormHtml() {
       </label>
 
       <div class="photo-uploader">
-        <div class="photo-preview" id="photo-preview-box">👤</div>
+        <div class="photo-preview" id="photo-preview-box"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>
         <div>
           <label style="cursor:pointer;font-weight:700;color:var(--c1);display:block;margin-bottom:4px">
             ${isAr ? 'الصورة الشخصية (مطلوبة لملف العضوية)' : 'Profile Photo (Required)'}

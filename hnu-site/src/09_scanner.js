@@ -54,7 +54,7 @@ async function startQrScanner() {
     await video.play();
     wrap.style.display = 'block';
     qrScannerActive = true;
-    if (statusEl) statusEl.textContent = lang === 'ar' ? '🔍 وجّه الكاميرا نحو QR العضو...' : '🔍 Point camera at member QR...';
+    if (statusEl) statusEl.textContent = lang === 'ar' ? 'وجّه الكاميرا نحو كود العضو...' : 'Point camera at member QR...';
 
     const ctx = canvas.getContext('2d');
     let lastScanned = '', lastScannedTime = 0;
@@ -82,7 +82,7 @@ async function startQrScanner() {
     }
     qrScanAnim = requestAnimationFrame(scanFrame);
   } catch (err) {
-    if (msgEl) { msgEl.className = 'msg bad'; msgEl.textContent = lang === 'ar' ? '❌ يرجى السماح بالوصول للكاميرا من إعدادات المتصفح.' : '❌ Please allow camera access in browser settings.'; }
+    if (msgEl) { msgEl.className = 'msg bad'; msgEl.textContent = lang === 'ar' ? 'يرجى السماح بالوصول للكاميرا من إعدادات المتصفح.' : 'Please allow camera access in browser settings.'; }
   }
 }
 
@@ -102,15 +102,15 @@ async function handleScannedMemberQr(data, statusEl, msgEl) {
 
     const activeQr = getStore('cf_active_qr', { active: false, title: '' });
     if (!activeQr.active) {
-      if (statusEl) statusEl.textContent = lang === 'ar' ? '⚠️ لا توجد جلسة نشطة' : '⚠️ No active session';
+      if (statusEl) statusEl.textContent = lang === 'ar' ? 'لا توجد جلسة نشطة' : 'No active session';
       if (msgEl) {
         msgEl.className = 'msg bad';
-        msgEl.textContent = lang === 'ar' ? '⚠️ يرجى بدء جلسة حضور أولاً من النموذج بالأعلى قبل مسح الأعضاء.' : '⚠️ Please start an attendance session first before scanning.';
+        msgEl.textContent = lang === 'ar' ? 'يرجى بدء جلسة حضور أولاً من النموذج بالأعلى قبل مسح الأعضاء.' : 'Please start an attendance session first before scanning.';
       }
       return;
     }
 
-    if (statusEl) statusEl.textContent = lang === 'ar' ? '⏳ جاري تسجيل الحضور...' : '⏳ Recording attendance...';
+    if (statusEl) statusEl.textContent = lang === 'ar' ? 'جاري تسجيل الحضور...' : 'Recording attendance...';
 
     const curUserId = localStorage.getItem('cf_user_id');
     const curUser = getStore('cf_cur_user', null) || getUsers().find(u => u.id === curUserId);
@@ -141,13 +141,13 @@ async function handleScannedMemberQr(data, statusEl, msgEl) {
         } catch (_) {}
 
         const displayName = result.studentName || studentName || studentIdentifier;
-        if (statusEl) statusEl.textContent = '⚠️ ' + (lang === 'ar' ? 'مسجل مسبقاً: ' + displayName : 'Already Recorded: ' + displayName);
+        if (statusEl) statusEl.textContent = (lang === 'ar' ? 'مسجل مسبقاً: ' + displayName : 'Already Recorded: ' + displayName);
         if (msgEl) {
           msgEl.className = 'msg';
           msgEl.style.color = '#b45309';
           msgEl.textContent = lang === 'ar'
-            ? `⚠️ تنبيه: الطالب (${displayName}) مسجل حضوره بالفعل مسبقاً في هذه الفعالية!`
-            : `⚠️ Notice: (${displayName}) was already recorded in this event!`;
+            ? `تنبيه: الطالب (${displayName}) مسجل حضوره بالفعل مسبقاً في هذه الفعالية!`
+            : `Notice: (${displayName}) was already recorded in this event!`;
         }
       } else {
         // Success audio notification chime (880Hz crystal bell)
@@ -166,17 +166,27 @@ async function handleScannedMemberQr(data, statusEl, msgEl) {
         if (navigator.vibrate) navigator.vibrate(100);
 
         const displayName = result.studentName || studentName || studentIdentifier;
-        if (statusEl) statusEl.textContent = '✅ ' + (lang === 'ar' ? 'تم تسجيل: ' + displayName : 'Recorded: ' + displayName);
+        if (statusEl) statusEl.textContent = (lang === 'ar' ? 'تم تسجيل: ' + displayName : 'Recorded: ' + displayName);
         if (msgEl) {
           msgEl.className = 'msg';
           msgEl.style.color = 'var(--g2)';
           msgEl.textContent = lang === 'ar' 
-            ? `✅ تم تسجيل حضور الطالب (${displayName}) بنجاح وإضافته لكشف الحضور!` 
-            : `✅ Attendance recorded for (${displayName}) and added to sheet!`;
+            ? `تم تسجيل حضور الطالب (${displayName}) بنجاح وإضافته لكشف الحضور!` 
+            : `Attendance recorded for (${displayName}) and added to sheet!`;
+        }
+
+        // Optimistically add attendee immediately to local state for 0ms latency
+        if (result.attendee) {
+          const localAtts = getStore('cf_attendance', []);
+          const exists = localAtts.some(a => a.id === result.attendee.id || (a.studentId === result.attendee.studentId && (a.event === result.attendee.event || a.eventTitle === result.attendee.eventTitle)));
+          if (!exists) {
+            localAtts.unshift(result.attendee);
+            setStore('cf_attendance', localAtts);
+          }
         }
 
         // Immediately sync with database and update live sheet
-        await syncAttendanceWithCloud();
+        await syncAttendanceWithCloud(true);
         render('keep');
       }
 
@@ -184,13 +194,13 @@ async function handleScannedMemberQr(data, statusEl, msgEl) {
         if (msgEl) msgEl.textContent = '';
       }, 5000);
     } else {
-      if (statusEl) statusEl.textContent = '⚠️ ' + (result.error || 'Error');
+      if (statusEl) statusEl.textContent = (result.error || 'Error');
       if (msgEl) {
         msgEl.className = 'msg bad';
         msgEl.textContent = result.error || (lang === 'ar' ? 'فشل التسجيل.' : 'Recording failed.');
       }
     }
   } catch (err) {
-    if (statusEl) statusEl.textContent = '❌ ' + (lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error');
+    if (statusEl) statusEl.textContent = (lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error');
   }
 }

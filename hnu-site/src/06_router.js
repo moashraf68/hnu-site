@@ -98,13 +98,13 @@ function statics() {
   if (navLoginBtn) {
     const role = localStorage.getItem("cf_role");
     if (role === "ADMIN" || role === "SUPER_ADMIN") {
-      navLoginBtn.textContent = lang === "ar" ? "👑 لوحة الإدارة" : "👑 Admin Panel";
+      navLoginBtn.textContent = lang === "ar" ? "لوحة الإدارة" : "Admin Panel";
       navLoginBtn.href = "/admin";
     } else if (role === "STUDENT") {
-      navLoginBtn.textContent = lang === "ar" ? "🎓 لوحة العضو" : "🎓 Member Portal";
+      navLoginBtn.textContent = lang === "ar" ? "لوحة العضو" : "Member Portal";
       navLoginBtn.href = "/portal";
     } else {
-      navLoginBtn.textContent = lang === "ar" ? "🔐 تسجيل الدخول" : "🔐 Sign In";
+      navLoginBtn.textContent = lang === "ar" ? "تسجيل الدخول" : "Sign In";
       navLoginBtn.href = "/portal";
     }
   }
@@ -262,11 +262,11 @@ app.addEventListener("submit", async ev => {
     });
     const data = await r.json();
     if (!r.ok || !data.success) throw new Error(data.error || "Fail");
-    m.textContent = lang === "ar" ? "✅ تم إرسال فكرتك بنجاح وحفظها في قاعدة البيانات! شكراً لمشاركتك." : "✅ Idea submitted and saved to database successfully! Thank you.";
+    m.textContent = lang === "ar" ? "تم إرسال فكرتك بنجاح وحفظها في قاعدة البيانات! شكراً لمشاركتك." : "Idea submitted and saved to database successfully! Thank you.";
     f.reset();
     syncSuggestionsWithCloud();
   } catch (err) {
-    m.textContent = lang === "ar" ? "⚠️ تعذر إرسال المقترح، يرجى المحاولة مرة أخرى." : S("fail");
+    m.textContent = lang === "ar" ? "تعذر إرسال المقترح، يرجى المحاولة مرة أخرى." : S("fail");
     m.classList.add("bad");
   } finally {
     if (submitBtn) { submitBtn.disabled = false; }

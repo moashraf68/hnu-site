@@ -1,5 +1,5 @@
 const { getDb } = require('./db')
-const { setCommonHeaders, verifyRequester, sendJson } = require('./helpers')
+const { setCommonHeaders, verifyRequester, normalizeArabicDigits, sendJson } = require('./helpers')
 
 // In-memory cache to save database transfer
 let cachedAttData = null
@@ -21,8 +21,8 @@ module.exports = async function handler(req, res) {
     // -------------------------------------------------------------
     if (req.method === 'GET') {
       const now = Date.now()
-      if (cachedAttData && (now - lastAttFetchTime < ATT_CACHE_TTL)) {
-        res.setHeader('Cache-Control', 'public, s-maxage=8, stale-while-revalidate=16')
+      const isFreshReq = req.query.t || req.query.fresh || req.query.nocache
+      if (!isFreshReq && cachedAttData && (now - lastAttFetchTime < ATT_CACHE_TTL)) {
         return sendJson(res, 200, cachedAttData)
       }
 
@@ -69,7 +69,7 @@ module.exports = async function handler(req, res) {
       // Live attendance records
       const attRes = await sql`
         SELECT a.id, a.event_id, a.user_id, a.scanned_at,
-               u.full_name, u.national_id, u.college, u.academic_year, u.committee_id, u.profile_photo,
+               u.full_name, u.national_id, u.college, u.academic_year, u.committee_id, u.profile_photo, u.phone,
                e.title_ar AS event_title
         FROM attendance a
         LEFT JOIN users u ON a.user_id = u.id
@@ -80,18 +80,29 @@ module.exports = async function handler(req, res) {
       const hiddenNids = new Set(['12121212121212'])
       const attendees = attRes.rows
         .filter(r => !hiddenNids.has(r.national_id))
-        .map(r => ({
-          id: r.id,
-          studentId: r.user_id,
-          name: r.full_name || 'عضو غير مسجل',
-          nid: r.national_id || '',
-          college: r.college || '',
-          year: r.academic_year || '',
-          com: r.committee_id || '',
-          photo: r.profile_photo || '/assets/images/logo.png',
-          eventTitle: r.event_title || activeQr.title || 'فعالية عامة',
-          scannedAt: r.scanned_at ? new Date(r.scanned_at).toISOString() : new Date().toISOString()
-        }))
+        .map(r => {
+          const scanDate = r.scanned_at ? new Date(r.scanned_at) : new Date()
+          const timeStr = scanDate.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+          const dateStr = scanDate.toLocaleDateString('ar-EG')
+          return {
+            id: r.id,
+            studentId: r.user_id,
+            name: r.full_name || 'عضو غير مسجل',
+            studentName: r.full_name || 'عضو غير مسجل',
+            nid: r.national_id || '',
+            college: r.college || '',
+            year: r.academic_year || '',
+            com: r.committee_id || '',
+            committee: r.committee_id || '',
+            phone: r.phone || '',
+            photo: r.profile_photo || '/assets/images/logo.png',
+            event: r.event_title || activeQr.title || 'فعالية عامة',
+            eventTitle: r.event_title || activeQr.title || 'فعالية عامة',
+            time: timeStr,
+            date: dateStr,
+            scannedAt: scanDate.toISOString()
+          }
+        })
 
       // Archives
       const archRes = await sql`
@@ -123,7 +134,6 @@ module.exports = async function handler(req, res) {
         totalLiveAttendees: attendees.length
       }
       lastAttFetchTime = Date.now()
-      res.setHeader('Cache-Control', 'public, s-maxage=8, stale-while-revalidate=16')
       return sendJson(res, 200, cachedAttData)
     }
 
@@ -228,9 +238,12 @@ module.exports = async function handler(req, res) {
         eventId = eventResult.rows[0].id
       }
 
+      const rawStudentId = String(studentId || '').trim()
+      const normNid = normalizeArabicDigits(rawStudentId)
       const uRes = await sql`
-        SELECT id, full_name, national_id FROM users
-        WHERE id::text = ${studentId} OR national_id = ${studentId}
+        SELECT id, full_name, national_id, college, academic_year, committee_id, profile_photo, phone
+        FROM users
+        WHERE id::text = ${rawStudentId} OR national_id = ${rawStudentId} OR national_id = ${normNid}
         LIMIT 1
       `
       if (uRes.rows.length === 0) {
@@ -239,8 +252,9 @@ module.exports = async function handler(req, res) {
           error: 'هذا الرمز غير مسجل لأي طالب في قاعدة بيانات الأسرة.'
         })
       }
-      const actualUserId = uRes.rows[0].id
-      const actualUserName = uRes.rows[0].full_name
+      const uRow = uRes.rows[0]
+      const actualUserId = uRow.id
+      const actualUserName = uRow.full_name
 
       // Check if student is already recorded in this event
       const checkAtt = await sql`
@@ -259,15 +273,40 @@ module.exports = async function handler(req, res) {
       }
 
       // First time recording
-      await sql`
+      const newAttRes = await sql`
         INSERT INTO attendance (id, event_id, user_id, scanned_at)
         VALUES (gen_random_uuid(), ${eventId}, ${actualUserId}, NOW())
+        RETURNING id, scanned_at
       `
+      const newAttRow = newAttRes.rows[0] || {}
+      const scanDate = newAttRow.scanned_at ? new Date(newAttRow.scanned_at) : new Date()
+      const timeStr = scanDate.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+      const dateStr = scanDate.toLocaleDateString('ar-EG')
+
+      const attendeeRecord = {
+        id: newAttRow.id || String(Date.now()),
+        studentId: actualUserId,
+        name: actualUserName,
+        studentName: actualUserName,
+        nid: uRow.national_id || '',
+        college: uRow.college || '',
+        year: uRow.academic_year || '',
+        com: uRow.committee_id || '',
+        committee: uRow.committee_id || '',
+        phone: uRow.phone || '',
+        photo: uRow.profile_photo || '/assets/images/logo.png',
+        event: title,
+        eventTitle: title,
+        time: timeStr,
+        date: dateStr,
+        scannedAt: scanDate.toISOString()
+      }
 
       return sendJson(res, 200, {
         success: true,
         alreadyRecorded: false,
         studentName: actualUserName,
+        attendee: attendeeRecord,
         message: `تم تسجيل حضور الطالب (${actualUserName}) بنجاح وتوثيقه في السيرفر!`
       })
     }

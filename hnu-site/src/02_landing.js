@@ -45,7 +45,7 @@ function homeView() {
       const imgUrl = g.url || g;
       const title = g.title || `${S("gimg")} ${i + 1}`;
       return `<button type="button" class="gi rv" data-g="${i}" aria-label="${title}" style="position:relative;overflow:hidden">
-        <img src="${imgUrl}" alt="${title}" width="400" height="300" loading="lazy" data-fb="🖼" data-fbc="fbimg">
+        <img src="${imgUrl}" alt="${title}" width="400" height="300" loading="lazy" data-fb="" data-fbc="fbimg">
         ${g.title ? `<span style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.8));color:#fff;padding:12px 14px 6px;font-size:.82rem;font-weight:600;pointer-events:none;text-align:right">${g.title}</span>` : ''}
       </button>`;
     }
@@ -73,7 +73,7 @@ function homeView() {
 function committeesView() {
   return `<section class="sec pg"><div class="wrap"><h1 class="h2 rv">${S("n_com")}</h1><p class="subh rv">${S("com_sub")}</p>
   <div class="cgrid">${C.committeeOrder.map((k, i) => { const c = C.committees[k]; return `<a class="ccard rv" style="--d:${i * 70}ms" href="/committees/${k}" data-link>
-    <span class="cico" aria-hidden="true">${c.icon}</span><span class="ccode">${c.code}</span><span class="car">${t(c)}</span><span class="cen">${lang === "ar" ? c.en : c.ar}</span>
+    ${c.icon ? `<span class="cico" aria-hidden="true">${c.icon}</span>` : ''}<span class="ccode">${c.code}</span><span class="car">${t(c)}</span><span class="cen">${lang === "ar" ? c.en : c.ar}</span>
     <span class="cint">${t(c.intro)}</span><span class="ccta">${S("view_com")} ${arrow}</span></a>`; }).join("")}</div></div></section>`;
 }
 
@@ -82,7 +82,7 @@ function committeeView(k) {
   const soc = Object.entries(c.links || {}).filter(([, u]) => u).map(([n, u]) => `<a class="btn ghost" href="${u}" target="_blank" rel="noopener noreferrer"><span style="text-transform:capitalize">${n}</span></a>`).join("");
   return `<article class="cd">
   <section class="cdhero"><div class="wrap"><a href="/committees" data-link class="back">${arrow} ${S("back")}</a>
-    <span class="cico big" aria-hidden="true">${c.icon}</span><h1>${c.code} <small>${t(c)}</small></h1><p class="en">${lang === "ar" ? c.en : c.ar}</p><p class="intro">${t(c.desc)}</p></div></section>
+    ${c.icon ? `<span class="cico big" aria-hidden="true">${c.icon}</span>` : ''}<h1>${c.code} <small>${t(c)}</small></h1><p class="en">${lang === "ar" ? c.en : c.ar}</p><p class="intro">${t(c.desc)}</p></div></section>
   <div class="wrap cdbody">
     <section class="card rv"><h2>${S("role")}</h2><p>${t(c.role)}</p></section>
     <div class="two"><section class="card rv"><h2>${S("resp")}</h2><ul class="tick">${list(c.tasks)}</ul></section>

@@ -19,7 +19,7 @@ const person = (p, title, cls = "") => {
   const hasBio = p.bioKey && C.bios && C.bios[p.bioKey];
   const imgEl = `<img class="av${hasBio ? ' bio-trigger' : ''}" src="${fixPath(p.photo)}" alt="${p.name}" width="160" height="160" loading="lazy" data-fb='${USER}' data-fbc="av ph"${hasBio ? ` data-bio="${p.bioKey}" title="${lang === 'ar' ? 'اضغط لعرض السيرة الذاتية' : 'Click to view profile'}" style="cursor:pointer"` : ''}>`;
   const wrapEl = hasBio
-    ? `<button type="button" class="av-bio-btn" data-bio="${p.bioKey}" aria-label="${lang === 'ar' ? 'سيرة ذاتية: ' + p.name : 'Profile: ' + p.name}" style="background:none;border:none;padding:0;cursor:pointer;position:relative;display:inline-block">${imgEl}<span style="position:absolute;bottom:4px;right:4px;background:linear-gradient(135deg,var(--c1),#7a4a28);color:#fff;border-radius:50%;width:26px;height:26px;font-size:.85rem;display:flex;align-items:center;justify-content:center;line-height:1;box-shadow:0 3px 10px rgba(0,0,0,.4);border:2px solid #fff;pointer-events:none" title="${lang === 'ar' ? 'السيرة الذاتية' : 'Biography'}" aria-hidden="true">📜</span></button>`
+    ? `<button type="button" class="av-bio-btn" data-bio="${p.bioKey}" aria-label="${lang === 'ar' ? 'سيرة ذاتية: ' + p.name : 'Profile: ' + p.name}" style="background:none;border:none;padding:0;cursor:pointer;position:relative;display:inline-block">${imgEl}<span style="position:absolute;bottom:4px;right:4px;background:linear-gradient(135deg,var(--c1),#7a4a28);color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;line-height:1;box-shadow:0 3px 10px rgba(0,0,0,.4);border:2px solid #fff;pointer-events:none" title="${lang === 'ar' ? 'السيرة الذاتية' : 'Biography'}" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg></span></button>`
     : `<div class="avslot">${imgEl}</div>`;
   return `<figure class="person ${cls}"${hasBio ? ` data-bio="${p.bioKey}" style="cursor:pointer"` : ''}>${wrapEl}<figcaption><b>${p.name}</b><small>${title}</small></figcaption></figure>`;
 };
@@ -37,14 +37,14 @@ function getVideoEmbedUrl(url) {
 }
 
 function getVideoBadge(url) {
-  if (!url) return '🎥 فيديو';
-  if (/facebook\.com|fb\.watch/i.test(url)) return '🎥 فيسبوك';
-  if (/tiktok\.com/i.test(url)) return '🎥 تيك توك';
-  if (/instagram\.com/i.test(url)) return '🎥 إنستغرام';
-  if (/youtu\.be|youtube\.com/i.test(url)) return '🎥 يوتيوب';
-  if (/vimeo\.com/i.test(url)) return '🎥 فيميو';
-  if (url.startsWith('data:video') || /\.(mp4|webm|mov|ogg)/i.test(url)) return '🎥 كليب مباشر';
-  return '🎥 فيديو';
+  if (!url) return 'فيديو';
+  if (/facebook\.com|fb\.watch/i.test(url)) return 'فيسبوك';
+  if (/tiktok\.com/i.test(url)) return 'تيك توك';
+  if (/instagram\.com/i.test(url)) return 'إنستغرام';
+  if (/youtu\.be|youtube\.com/i.test(url)) return 'يوتيوب';
+  if (/vimeo\.com/i.test(url)) return 'فيميو';
+  if (url.startsWith('data:video') || /\.(mp4|webm|mov|ogg)/i.test(url)) return 'كليب مباشر';
+  return 'فيديو';
 }
 
 function renderVideoPlayer(url, title = "", extraStyle = "") {

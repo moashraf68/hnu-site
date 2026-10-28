@@ -102,10 +102,10 @@ app.addEventListener("click", async e => {
     if (inp) {
       if (inp.type === "password") {
         inp.type = "text";
-        pwBtn.textContent = "🙈";
+        pwBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>';
       } else {
         inp.type = "password";
-        pwBtn.textContent = "👁️";
+        pwBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
       }
     }
     return;
@@ -129,7 +129,7 @@ app.addEventListener("click", async e => {
     const isAr = lang === "ar";
     if (!confirm(isAr ? "هل تريد إنهاء الفعالية الحالية وإيقاف الـ QR وأرشفة سجلات الحضور؟" : "End event, stop QR and archive attendance records?")) return;
     const stopBtn = e.target.closest("#btn-stop-qr") || e.target.closest("#btn-stop-qr-2");
-    if (stopBtn) { stopBtn.disabled = true; stopBtn.textContent = isAr ? '⏳ جاري الإنهاء...' : 'Stopping...'; }
+    if (stopBtn) { stopBtn.disabled = true; stopBtn.textContent = isAr ? 'جاري الإنهاء...' : 'Stopping...'; }
 
     const activeQr = getStore("cf_active_qr", {});
     const attendances = getStore("cf_attendance", []);
@@ -141,7 +141,7 @@ app.addEventListener("click", async e => {
     if (activeQr.title) {
       const users = getUsers();
       enrichedAttendees = attendances
-        .filter(a => a.event === activeQr.title)
+        .filter(a => (a.event || a.eventTitle) === activeQr.title)
         .map(a => {
           const u = users.find(x => x.id === a.studentId) || {};
           return {
@@ -207,7 +207,7 @@ app.addEventListener("click", async e => {
     if (!curUser || !activeQr.active) return;
 
     btn.disabled = true;
-    btn.textContent = isAr ? '⏳ جاري توثيق الحضور في السيرفر...' : 'Recording attendance...';
+    btn.textContent = isAr ? 'جاري توثيق الحضور في السيرفر...' : 'Recording attendance...';
 
     try {
       const res = await fetch('/api/attendance', {
@@ -241,12 +241,12 @@ app.addEventListener("click", async e => {
       } else {
         alert(data.error || (isAr ? 'فشل تسجيل الحضور.' : 'Failed to record attendance.'));
         btn.disabled = false;
-        btn.textContent = isAr ? 'تسجيل حضوري الآن في الفعالية ✅' : 'Record My Attendance Now ✅';
+        btn.textContent = isAr ? 'تسجيل حضوري الآن في الفعالية' : 'Record My Attendance Now';
       }
     } catch (err) {
       alert(isAr ? 'حدث خطأ أثناء الاتصال بالسيرفر.' : 'Connection error.');
       btn.disabled = false;
-      btn.textContent = isAr ? 'تسجيل حضوري الآن في الفعالية ✅' : 'Record My Attendance Now ✅';
+      btn.textContent = isAr ? 'تسجيل حضوري الآن في الفعالية' : 'Record My Attendance Now';
     }
     return;
   }
@@ -313,10 +313,10 @@ app.addEventListener("click", async e => {
     btn.textContent = isAr ? 'جاري التحديث...' : 'Syncing...';
     await syncSuggestionsWithCloud();
     btn.disabled = false;
-    btn.textContent = isAr ? '✓ تم التحديث' : '✓ Synced';
+    btn.textContent = isAr ? 'تم التحديث' : 'Synced';
     render("keep");
     setTimeout(() => {
-      if (btn) btn.textContent = isAr ? '🔄 تحديث المقترحات' : 'Refresh Suggestions';
+      if (btn) btn.textContent = isAr ? 'تحديث المقترحات' : 'Refresh Suggestions';
     }, 2000);
     return;
   }
@@ -373,10 +373,10 @@ app.addEventListener("click", async e => {
     btn.textContent = isAr ? 'جاري التحديث...' : 'Syncing...';
     await syncGalleryWithCloud();
     btn.disabled = false;
-    btn.textContent = isAr ? '✓ تم التحديث' : '✓ Synced';
+    btn.textContent = isAr ? 'تم التحديث' : 'Synced';
     render("keep");
     setTimeout(() => {
-      if (btn) btn.textContent = isAr ? '🔄 تحديث المعرض' : 'Refresh Gallery';
+      if (btn) btn.textContent = isAr ? 'تحديث المعرض' : 'Refresh Gallery';
     }, 2000);
     return;
   }
@@ -444,9 +444,9 @@ app.addEventListener("click", async e => {
     btn.textContent = isAr ? 'جاري المزامنة...' : 'Syncing...';
     await syncWithCloud(true);
     btn.disabled = false;
-    btn.textContent = isAr ? '✓ تم التحديث بنجاح' : '✓ Synced';
+    btn.textContent = isAr ? 'تم التحديث بنجاح' : 'Synced';
     setTimeout(() => {
-      if (btn) btn.textContent = isAr ? '🔄 تحديث فوري من قاعدة البيانات' : 'Sync Live';
+      if (btn) btn.textContent = isAr ? 'تحديث فوري من قاعدة البيانات' : 'Sync Live';
     }, 2000);
     return;
   }
@@ -460,8 +460,8 @@ app.addEventListener("click", async e => {
     const isAr = lang === "ar";
 
     if (!confirm(isAr 
-      ? `⚠️ تحذير نهائي:\nهل أنت متأكد من رغبتك في حذف العضو (${sname}) نهائياً؟\nسيتم مسح حسابه وسجلات حضوره وتقييماته من قاعدة البيانات بالكامل كأنه لم يدخل إطلاقاً.` 
-      : `⚠️ Are you sure you want to permanently erase member (${sname})? All data will be deleted.`)) {
+      ? `تحذير نهائي:\nهل أنت متأكد من رغبتك في حذف العضو (${sname}) نهائياً؟\nسيتم مسح حسابه وسجلات حضوره وتقييماته من قاعدة البيانات بالكامل كأنه لم يدخل إطلاقاً.` 
+      : `Are you sure you want to permanently erase member (${sname})? All data will be deleted.`)) {
       return;
     }
 
@@ -511,7 +511,7 @@ app.addEventListener("click", async e => {
     });
     setStore("cf_events_archive", currentArchive);
 
-    alert(isAr ? `✅ تم حذف العضو (${sname}) وكافة بياناته نهائياً من قاعدة البيانات.` : `✅ Member and all records deleted permanently.`);
+    alert(isAr ? `تم حذف العضو (${sname}) وكافة بياناته نهائياً من قاعدة البيانات.` : `Member and all records deleted permanently.`);
     render("keep");
     return;
   }
@@ -631,7 +631,7 @@ app.addEventListener("click", async e => {
       } else {
         alert(data.error || (isAr ? "فشل المسح." : "Failed to clear."));
         clearAllAttBtn.disabled = false;
-        clearAllAttBtn.textContent = isAr ? '🗑️ تصفية سجل الحضور بالكامل' : '🗑️ Clear All History';
+        clearAllAttBtn.textContent = isAr ? 'تصفية سجل الحضور بالكامل' : 'Clear All History';
       }
     } catch (err) {
       alert(isAr ? "خطأ في الاتصال بالخادم." : "Connection error.");
@@ -739,8 +739,8 @@ app.addEventListener("change", e => {
         const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
         if (msgEl) {
           msgEl.innerHTML = lang === "ar"
-            ? `⚠️ حجم ملف الفيديو (${sizeMB} ميجا) يتجاوز الحد المسموح للرفع المباشر (4.2 ميجا).<br>💡 يُرجى اختيار <b>(رابط من أي منصة)</b> ووضع رابط الفيديو من فيسبوك أو يوتيوب أو تيك توك وسيعمل بأعلى جودة وبدون أي حد للحجم!`
-            : `⚠️ Video size (${sizeMB}MB) exceeds 4.2MB limit. Please use the video link option.`;
+            ? `حجم ملف الفيديو (${sizeMB} ميجا) يتجاوز الحد المسموح للرفع المباشر (4.2 ميجا).<br>يُرجى اختيار <b>(رابط من أي منصة)</b> ووضع رابط الفيديو من فيسبوك أو يوتيوب أو تيك توك وسيعمل بأعلى جودة وبدون أي حد للحجم!`
+            : `Video size (${sizeMB}MB) exceeds 4.2MB limit. Please use the video link option.`;
           msgEl.style.color = 'var(--red)';
         }
         e.target.value = '';
@@ -770,8 +770,8 @@ app.addEventListener("submit", async e => {
     if (lockoutSecondsRemaining > 0) {
       msg.className = "msg bad";
       msg.textContent = isAr 
-        ? `⚠️ تم قفل محاولات تسجيل الدخول مؤقتاً لحماية حسابك. يرجى الانتظار (${lockoutSecondsRemaining}) ثانية.`
-        : `⚠️ Too many failed attempts. Please wait (${lockoutSecondsRemaining})s before retrying.`;
+        ? `تم قفل محاولات تسجيل الدخول مؤقتاً لحماية حسابك. يرجى الانتظار (${lockoutSecondsRemaining}) ثانية.`
+        : `Too many failed attempts. Please wait (${lockoutSecondsRemaining})s before retrying.`;
       return;
     }
 
@@ -816,7 +816,7 @@ app.addEventListener("submit", async e => {
     if (authenticatedUser) {
       loginAttempts = 0;
       msg.className = "msg";
-      msg.textContent = isAr ? "✅ تم التحقق بنجاح! جاري الدخول للوحة التحكم..." : "✅ Authenticated! Redirecting...";
+      msg.textContent = isAr ? "تم التحقق بنجاح! جاري الدخول للوحة التحكم..." : "Authenticated! Redirecting...";
       
       // Update local storage with current verified user
       const users = getUsers();
@@ -846,8 +846,8 @@ app.addEventListener("submit", async e => {
         if (submitBtn) submitBtn.disabled = true;
         msg.className = "msg bad";
         msg.textContent = isAr 
-          ? `🔒 تم قفل محاولات الدخول مؤقتاً لمدة 60 ثانية لحماية الحساب من التخمين.`
-          : `🔒 Temporarily locked for 60 seconds due to repeated failed attempts.`;
+          ? `تم قفل محاولات الدخول مؤقتاً لمدة 60 ثانية لحماية الحساب من التخمين.`
+          : `Temporarily locked for 60 seconds due to repeated failed attempts.`;
 
         clearInterval(lockoutTimer);
         lockoutTimer = setInterval(() => {
@@ -860,8 +860,8 @@ app.addEventListener("submit", async e => {
             msg.textContent = isAr ? "يمكنك الآن المحاولة مجدداً." : "You can try logging in now.";
           } else {
             msg.textContent = isAr 
-              ? `🔒 متبقي (${lockoutSecondsRemaining}) ثانية لفك القفل المؤقت...`
-              : `🔒 Locked. (${lockoutSecondsRemaining})s remaining...`;
+              ? `متبقي (${lockoutSecondsRemaining}) ثانية لفك القفل المؤقت...`
+              : `Locked. (${lockoutSecondsRemaining})s remaining...`;
           }
         }, 1000);
       } else {
@@ -962,7 +962,7 @@ app.addEventListener("submit", async e => {
     saveUsers(users);
 
     msg.className = "msg";
-    msg.textContent = isAr ? "✅ تم إنشاء الحساب بنجاح! جاري تحويلك لبوابتك..." : "✅ Account created successfully! Redirecting...";
+    msg.textContent = isAr ? "تم إنشاء الحساب بنجاح! جاري تحويلك لبوابتك..." : "Account created successfully! Redirecting...";
     localStorage.setItem("cf_role", "STUDENT");
     localStorage.setItem("cf_user_id", newUser.id);
     localStorage.setItem("cf_user_name", newUser.name);
@@ -989,7 +989,7 @@ app.addEventListener("submit", async e => {
       return;
     }
 
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isAr ? "⏳ جاري البدء..." : "Starting..."; }
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isAr ? "جاري البدء..." : "Starting..."; }
     if (msg) { msg.className = "msg"; msg.textContent = ""; }
 
     fetch('/api/attendance', {
@@ -1010,15 +1010,15 @@ app.addEventListener("submit", async e => {
           image: '',
           createdAt: new Date().toLocaleTimeString('ar-EG')
         });
-        if (msg) { msg.className = "msg"; msg.textContent = isAr ? "✅ تم بدء جلسة الحضور! QR خاص يظهر الآن لكل عضو في بوابته 🚀" : "✅ Attendance session started! Each member now sees their personal QR."; }
+        if (msg) { msg.className = "msg"; msg.textContent = isAr ? "تم بدء جلسة الحضور! كود خاص يظهر الآن لكل عضو في بوابته." : "Attendance session started! Each member now sees their personal QR."; }
         setTimeout(() => render("keep"), 400);
       } else {
         if (msg) { msg.className = "msg bad"; msg.textContent = data.error || (isAr ? "فشل بدء الجلسة." : "Failed to start session."); }
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? "🚀 بدء جلسة الحضور" : "🚀 Start Session"; }
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? "بدء جلسة الحضور" : "Start Session"; }
       }
     }).catch(() => {
       if (msg) { msg.className = "msg bad"; msg.textContent = isAr ? "حدث خطأ في الاتصال بالسيرفر." : "Connection error."; }
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? "🚀 بدء جلسة الحضور" : "🚀 Start Session"; }
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? "بدء جلسة الحضور" : "Start Session"; }
     });
     return;
   }
@@ -1068,19 +1068,19 @@ app.addEventListener("submit", async e => {
         }
         if (m) {
           m.className = "msg";
-          m.textContent = isAr ? `✅ تم حفظ وتحديث تقييم العضو (${s ? s.name : ''}) في قاعدة البيانات بنجاح (${score} / 10) 🌟` : `Evaluation updated in database (${score} / 10) 🌟`;
+          m.textContent = isAr ? `تم حفظ وتحديث تقييم العضو (${s ? s.name : ''}) في قاعدة البيانات بنجاح (${score} / 10)` : `Evaluation updated in database (${score} / 10)`;
         }
         await syncWithCloud(true);
       } else {
         if (m) {
           m.className = "msg bad";
-          m.textContent = data.error || (isAr ? "⚠️ فشل حفظ التقييم في قاعدة البيانات." : "Failed to save evaluation.");
+          m.textContent = data.error || (isAr ? "فشل حفظ التقييم في قاعدة البيانات." : "Failed to save evaluation.");
         }
       }
     } catch (err) {
       if (m) {
         m.className = "msg bad";
-        m.textContent = isAr ? "⚠️ حدث خطأ في الاتصال بالسيرفر." : "Connection failed.";
+        m.textContent = isAr ? "حدث خطأ في الاتصال بالسيرفر." : "Connection failed.";
       }
     } finally {
       if (submitBtn) {
@@ -1129,7 +1129,7 @@ app.addEventListener("submit", async e => {
     saveUsers(users);
     setStore("cf_cur_user", user);
     msg.className = "msg";
-    msg.textContent = lang === "ar" ? "⏳ جاري حفظ التعديلات على السيرفر..." : "⏳ Saving to server...";
+    msg.textContent = lang === "ar" ? "جاري حفظ التعديلات على السيرفر..." : "Saving to server...";
 
     // Sync photo + profile to cloud DB
     try {
@@ -1139,7 +1139,7 @@ app.addEventListener("submit", async e => {
     } catch (_) {}
 
     msg.className = "msg";
-    msg.textContent = lang === "ar" ? "✅ تم تحديث بياناتك بنجاح على السيرفر!" : "✅ Profile updated on server!";
+    msg.textContent = lang === "ar" ? "تم تحديث بياناتك بنجاح على السيرفر!" : "Profile updated on server!";
     setTimeout(() => {
       isEditingProfile = false;
       editPhotoBase64 = "";
@@ -1162,7 +1162,7 @@ app.addEventListener("submit", async e => {
     const curUser = getStore("cf_cur_user", null) || getUsers().find(u => u.id === curUserId);
     if (!curUser || (!curUser.isSuperAdmin && curUser.role !== 'SUPER_ADMIN')) {
       if (msgEl) {
-        msgEl.textContent = isAr ? '⚠️ غير مصرح: هذه الميزة للمشرف العام فقط.' : '⚠️ Unauthorized: Super Admin only.';
+        msgEl.textContent = isAr ? 'غير مصرح: هذه الميزة للمشرف العام فقط.' : 'Unauthorized: Super Admin only.';
         msgEl.style.color = 'var(--red)';
       }
       return;
@@ -1173,13 +1173,13 @@ app.addEventListener("submit", async e => {
       const file = fileInput && fileInput.files && fileInput.files[0];
       if (!file) {
         if (msgEl) {
-          msgEl.textContent = isAr ? '⚠️ برجاء اختيار ملف صورة أولاً.' : '⚠️ Please select an image file first.';
+          msgEl.textContent = isAr ? 'برجاء اختيار ملف صورة أولاً.' : 'Please select an image file first.';
           msgEl.style.color = 'var(--red)';
         }
         return;
       }
 
-      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isAr ? '⏳ جاري الضغط والرفع للسحابة...' : '⏳ Uploading...'; }
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isAr ? 'جاري الضغط والرفع للسحابة...' : 'Uploading...'; }
       if (msgEl) msgEl.textContent = '';
 
       compressAndResizeImage(file, 1200, async (base64) => {
@@ -1215,17 +1215,17 @@ app.addEventListener("submit", async e => {
             render('keep');
           } else {
             if (msgEl) {
-              msgEl.textContent = data.error || (isAr ? '❌ حدث خطأ أثناء الرفع.' : '❌ Upload failed.');
+              msgEl.textContent = data.error || (isAr ? 'حدث خطأ أثناء الرفع.' : 'Upload failed.');
               msgEl.style.color = 'var(--red)';
             }
-            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? '🚀 إضافة إلى المعرض السحابي' : 'Add to Cloud Gallery'; }
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? 'إضافة إلى المعرض السحابي' : 'Add to Cloud Gallery'; }
           }
         } catch (err) {
           if (msgEl) {
-            msgEl.textContent = isAr ? '❌ تعذر الاتصال بالخادم.' : '❌ Server error.';
+            msgEl.textContent = isAr ? 'تعذر الاتصال بالخادم.' : 'Server error.';
             msgEl.style.color = 'var(--red)';
           }
-          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? '🚀 إضافة إلى المعرض السحابي' : 'Add to Cloud Gallery'; }
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? 'إضافة إلى المعرض السحابي' : 'Add to Cloud Gallery'; }
         }
       });
     } else {
@@ -1265,17 +1265,17 @@ app.addEventListener("submit", async e => {
             render('keep');
           } else {
             if (msgEl) {
-              msgEl.textContent = data.error || (isAr ? '❌ حدث خطأ أثناء الحفظ.' : '❌ Save failed.');
+              msgEl.textContent = data.error || (isAr ? 'حدث خطأ أثناء الحفظ.' : 'Save failed.');
               msgEl.style.color = 'var(--red)';
             }
-            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? '🚀 إضافة إلى المعرض السحابي' : 'Add to Cloud Gallery'; }
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? 'إضافة إلى المعرض السحابي' : 'Add to Cloud Gallery'; }
           }
         } catch (err) {
           if (msgEl) {
-            msgEl.textContent = isAr ? '❌ تعذر الاتصال بالخادم.' : '❌ Server error.';
+            msgEl.textContent = isAr ? 'تعذر الاتصال بالخادم.' : 'Server error.';
             msgEl.style.color = 'var(--red)';
           }
-          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? '🚀 إضافة إلى المعرض السحابي' : 'Add to Cloud Gallery'; }
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? 'إضافة إلى المعرض السحابي' : 'Add to Cloud Gallery'; }
         }
       };
 
@@ -1284,7 +1284,7 @@ app.addEventListener("submit", async e => {
         const file = vidFileInput && vidFileInput.files && vidFileInput.files[0];
         if (!file) {
           if (msgEl) {
-            msgEl.textContent = isAr ? '⚠️ برجاء اختيار ملف فيديو من جهازك أولاً.' : '⚠️ Please select a video file first.';
+            msgEl.textContent = isAr ? 'برجاء اختيار ملف فيديو من جهازك أولاً.' : 'Please select a video file first.';
             msgEl.style.color = 'var(--red)';
           }
           return;
@@ -1294,14 +1294,14 @@ app.addEventListener("submit", async e => {
           const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
           if (msgEl) {
             msgEl.innerHTML = isAr 
-              ? `⚠️ حجم ملف الفيديو (${sizeMB} ميجا) يتجاوز الحد المسموح للرفع المباشر (4.2 ميجا). يُرجى اختيار (رابط من أي منصة) لوضع رابطه من فيسبوك أو يوتيوب أو تيك توك بدون أي حد للحجم.`
-              : `⚠️ Video size (${sizeMB}MB) exceeds 4.2MB limit.`;
+              ? `حجم ملف الفيديو (${sizeMB} ميجا) يتجاوز الحد المسموح للرفع المباشر (4.2 ميجا). يُرجى اختيار (رابط من أي منصة) لوضع رابطه من فيسبوك أو يوتيوب أو تيك توك بدون أي حد للحجم.`
+              : `Video size (${sizeMB}MB) exceeds 4.2MB limit.`;
             msgEl.style.color = 'var(--red)';
           }
           return;
         }
 
-        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isAr ? '⏳ جاري تحويل ورفع ملف الفيديو للسحابة...' : '⏳ Uploading video...'; }
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isAr ? 'جاري تحويل ورفع ملف الفيديو للسحابة...' : 'Uploading video...'; }
         if (msgEl) msgEl.textContent = '';
 
         const reader = new FileReader();
@@ -1310,10 +1310,10 @@ app.addEventListener("submit", async e => {
         };
         reader.onerror = () => {
           if (msgEl) {
-            msgEl.textContent = isAr ? '❌ تعذر قراءة ملف الفيديو.' : '❌ Failed to read video file.';
+            msgEl.textContent = isAr ? 'تعذر قراءة ملف الفيديو.' : 'Failed to read video file.';
             msgEl.style.color = 'var(--red)';
           }
-          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? '🚀 إضافة إلى المعرض السحابي' : 'Add to Cloud Gallery'; }
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isAr ? 'إضافة إلى المعرض السحابي' : 'Add to Cloud Gallery'; }
         };
         reader.readAsDataURL(file);
       } else {
@@ -1322,13 +1322,13 @@ app.addEventListener("submit", async e => {
         const videoUrl = vidInput ? vidInput.value.trim() : '';
         if (!videoUrl) {
           if (msgEl) {
-            msgEl.textContent = isAr ? '⚠️ برجاء كتابة رابط الفيديو من فيسبوك، تيك توك، يوتيوب، أو أي منصة.' : '⚠️ Please enter video URL.';
+            msgEl.textContent = isAr ? 'برجاء كتابة رابط الفيديو من فيسبوك، تيك توك، يوتيوب، أو أي منصة.' : 'Please enter video URL.';
             msgEl.style.color = 'var(--red)';
           }
           return;
         }
 
-        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isAr ? '⏳ جاري الحفظ في السحابة...' : '⏳ Saving...'; }
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isAr ? 'جاري الحفظ في السحابة...' : 'Saving...'; }
         if (msgEl) msgEl.textContent = '';
 
         await saveVideoToCloud(videoUrl);
@@ -1422,9 +1422,9 @@ async function syncGalleryWithCloud() {
   } catch (err) {}
 }
 
-async function syncAttendanceWithCloud() {
+async function syncAttendanceWithCloud(forceFresh) {
   try {
-    const res = await fetch('/api/attendance');
+    const res = await fetch('/api/attendance' + (forceFresh ? '?t=' + Date.now() : ''));
     if (!res.ok) return;
     const data = await res.json();
     if (data.success) {
