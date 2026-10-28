@@ -1,6 +1,11 @@
 const { getDb } = require('./db')
 const { setCommonHeaders, verifyRequester, sendJson } = require('./helpers')
 
+// In-memory cache to save database transfer
+let cachedAttData = null
+let lastAttFetchTime = 0
+const ATT_CACHE_TTL = 10000 // 10 seconds
+
 module.exports = async function handler(req, res) {
   setCommonHeaders(res, 'GET,OPTIONS,POST,DELETE')
 
@@ -11,34 +16,39 @@ module.exports = async function handler(req, res) {
   const sql = getDb()
 
   try {
-    // 1. Ensure required tables exist
-    await sql`
-      CREATE TABLE IF NOT EXISTS active_qr (
-        id VARCHAR(50) PRIMARY KEY DEFAULT 'current',
-        title TEXT NOT NULL,
-        image TEXT NOT NULL,
-        is_active BOOLEAN DEFAULT false,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      )
-    `
-
-    await sql`
-      CREATE TABLE IF NOT EXISTS events_archive (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        title TEXT NOT NULL,
-        event_date TEXT,
-        event_time TEXT,
-        total_attendees INT DEFAULT 0,
-        attendees_json JSONB DEFAULT '[]',
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      )
-    `
-
     // -------------------------------------------------------------
     // 2. GET: Attendance State, Live Attendees, and Archives
     // -------------------------------------------------------------
     if (req.method === 'GET') {
+      const now = Date.now()
+      if (cachedAttData && (now - lastAttFetchTime < ATT_CACHE_TTL)) {
+        res.setHeader('Cache-Control', 'public, s-maxage=8, stale-while-revalidate=16')
+        return sendJson(res, 200, cachedAttData)
+      }
+
+      // 1. Ensure required tables exist
+      await sql`
+        CREATE TABLE IF NOT EXISTS active_qr (
+          id VARCHAR(50) PRIMARY KEY DEFAULT 'current',
+          title TEXT NOT NULL,
+          image TEXT NOT NULL,
+          is_active BOOLEAN DEFAULT false,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )
+      `
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS events_archive (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          title TEXT NOT NULL,
+          event_date TEXT,
+          event_time TEXT,
+          total_attendees INT DEFAULT 0,
+          attendees_json JSONB DEFAULT '[]',
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )
+      `
       const qrRes = await sql`
         SELECT title, image, is_active, created_at, updated_at
         FROM active_qr
@@ -105,19 +115,24 @@ module.exports = async function handler(req, res) {
         }
       })
 
-      return sendJson(res, 200, {
+      cachedAttData = {
         success: true,
         activeQr,
         attendees,
         archives,
         totalLiveAttendees: attendees.length
-      })
+      }
+      lastAttFetchTime = Date.now()
+      res.setHeader('Cache-Control', 'public, s-maxage=8, stale-while-revalidate=16')
+      return sendJson(res, 200, cachedAttData)
     }
 
     // -------------------------------------------------------------
     // 3. POST: Actions (SET_ACTIVE_QR, STOP_QR, or RECORD_ATTENDANCE)
     // -------------------------------------------------------------
     if (req.method === 'POST') {
+      cachedAttData = null
+      lastAttFetchTime = 0
       const body = req.body || {}
       const action = body.action || 'RECORD_ATTENDANCE'
 
@@ -261,6 +276,8 @@ module.exports = async function handler(req, res) {
     // 4. DELETE: Remove Archive or Clear Attendance
     // -------------------------------------------------------------
     if (req.method === 'DELETE') {
+      cachedAttData = null
+      lastAttFetchTime = 0
       const body = req.body || {}
       const targetId = body.id || req.query.id
       const archiveId = body.archiveId || req.query.archiveId

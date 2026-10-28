@@ -2,7 +2,7 @@
  * أسرة طلاب من أجل مصر — جامعة حلوان الأهلية
  * Modular Bundle: Generated from src/
  * Total Modules: 10
- * Generated: 2026-10-24T16:27:45.585Z
+ * Generated: 2026-10-28T00:50:54.171Z
  * ========================================================================= */
 
 
@@ -2883,22 +2883,22 @@ app.addEventListener("change", e => {
   if (e.target.id === "photo-file-input") {
     const file = e.target.files && e.target.files[0];
     if (file) {
-      compressAndResizeImage(file, 1080, base64 => {
+      compressAndResizeImage(file, 400, base64 => {
         regPhotoBase64 = base64;
         const box = $("#photo-preview-box");
         if (box) box.innerHTML = `<img src="${regPhotoBase64}" alt="Preview" style="width:100%;height:100%;object-fit:cover">`;
-      }, 0.90);
+      }, 0.82);
     }
   }
 
   if (e.target.id === "edit-photo-file-input") {
     const file = e.target.files && e.target.files[0];
     if (file) {
-      compressAndResizeImage(file, 1080, base64 => {
+      compressAndResizeImage(file, 400, base64 => {
         editPhotoBase64 = base64;
         const box = $("#edit-photo-preview-box");
         if (box) box.innerHTML = `<img src="${editPhotoBase64}" alt="Preview" style="width:100%;height:100%;object-fit:cover">`;
-      }, 0.90);
+      }, 0.82);
     }
   }
 
@@ -3596,7 +3596,7 @@ app.addEventListener("change", e => {
 
 async function syncSuggestionsWithCloud() {
   try {
-    const res = await fetch('/api/suggestions?t=' + Date.now(), { cache: 'no-store' });
+    const res = await fetch('/api/suggestions');
     if (!res.ok) return;
     const data = await res.json();
     if (data.success && Array.isArray(data.suggestions)) {
@@ -3615,7 +3615,7 @@ async function syncSuggestionsWithCloud() {
 
 async function syncGalleryWithCloud() {
   try {
-    const res = await fetch('/api/gallery?t=' + Date.now(), { cache: 'no-store' });
+    const res = await fetch('/api/gallery');
     if (!res.ok) return;
     const data = await res.json();
     if (data.success && Array.isArray(data.items)) {
@@ -3634,7 +3634,7 @@ async function syncGalleryWithCloud() {
 
 async function syncAttendanceWithCloud() {
   try {
-    const res = await fetch('/api/attendance?t=' + Date.now(), { cache: 'no-store' });
+    const res = await fetch('/api/attendance');
     if (!res.ok) return;
     const data = await res.json();
     if (data.success) {
@@ -3691,9 +3691,9 @@ async function syncAttendanceWithCloud() {
   } catch (err) {}
 }
 
-async function syncWithCloud(forceRender) {
+async function syncStudentsOnly(forceRender) {
   try {
-    const res = await fetch('/api/students?t=' + Date.now(), { cache: 'no-store' });
+    const res = await fetch('/api/students');
     if (!res.ok) return;
     const data = await res.json();
     if (data.success && Array.isArray(data.students)) {
@@ -3716,7 +3716,10 @@ async function syncWithCloud(forceRender) {
   } catch (err) {
     // Graceful offline fallback
   }
+}
 
+async function syncWithCloud(forceRender) {
+  await syncStudentsOnly(forceRender);
   syncSuggestionsWithCloud();
   syncGalleryWithCloud();
   syncAttendanceWithCloud();
@@ -4047,6 +4050,88 @@ statics(); render(); syncWithCloud();
     if (user) setTimeout(() => generateMemberQr(user), 150);
   }
 })();
-// Auto poll every 3 seconds for real-time live updates from database!
-setInterval(() => { syncWithCloud(); }, 3000);
+// --- Smart, Bandwidth-Protected Background Polling ---
+let smartPollTimer = null;
+
+function runSmartPolling() {
+  if (smartPollTimer) clearInterval(smartPollTimer);
+
+  smartPollTimer = setInterval(() => {
+    // 1. DO NOT poll at all if browser tab is hidden / minimized / screen locked
+    if (document.hidden) return;
+
+    const path = location.pathname;
+    const role = localStorage.getItem('cf_role');
+
+    // 2. Landing page (/) without admin/portal: ZERO POLLING!
+    if (path === '/' || path === '') return;
+
+    // 3. Member Portal (/portal): Only sync attendance (to check for active QR session or attendance confirmation)
+    if (path === '/portal') {
+      const activeQr = getStore("cf_active_qr", { active: false });
+      const now = Date.now();
+      const lastPoll = window._lastPortalPoll || 0;
+      // If QR session active, check every 15s; if inactive, check every 45s
+      const minInterval = activeQr.active ? 15000 : 45000;
+      if (now - lastPoll >= minInterval) {
+        window._lastPortalPoll = now;
+        syncAttendanceWithCloud();
+      }
+      return;
+    }
+
+    // 4. Admin Panel (/admin):
+    if (path === '/admin' && (role === 'ADMIN' || role === 'SUPER_ADMIN')) {
+      const now = Date.now();
+      // QR tab: poll attendance every 15s
+      if (typeof curAtab !== 'undefined' && curAtab === 'qr') {
+        const lastAttPoll = window._lastAdminAttPoll || 0;
+        if (now - lastAttPoll >= 15000) {
+          window._lastAdminAttPoll = now;
+          syncAttendanceWithCloud();
+        }
+      }
+      // Suggestions tab: poll every 60s
+      else if (typeof curAtab !== 'undefined' && curAtab === 'sugs') {
+        const lastSugPoll = window._lastAdminSugPoll || 0;
+        if (now - lastSugPoll >= 60000) {
+          window._lastAdminSugPoll = now;
+          syncSuggestionsWithCloud();
+        }
+      }
+      // Gallery tab: poll every 60s
+      else if (typeof curAtab !== 'undefined' && curAtab === 'gallery') {
+        const lastGalPoll = window._lastAdminGalPoll || 0;
+        if (now - lastGalPoll >= 60000) {
+          window._lastAdminGalPoll = now;
+          syncGalleryWithCloud();
+        }
+      }
+      // Members directory / overview: poll students only every 2 minutes
+      else {
+        const lastStdPoll = window._lastAdminStdPoll || 0;
+        if (now - lastStdPoll >= 120000) {
+          window._lastAdminStdPoll = now;
+          if (typeof syncStudentsOnly === 'function') syncStudentsOnly();
+        }
+      }
+    }
+  }, 5000);
+}
+
+// Pause all network timers when tab goes to background, resume when user returns
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (smartPollTimer) clearInterval(smartPollTimer);
+    smartPollTimer = null;
+  } else {
+    runSmartPolling();
+    const path = location.pathname;
+    if (path === '/portal' || path === '/admin') {
+      syncAttendanceWithCloud();
+    }
+  }
+});
+
+runSmartPolling();
 

@@ -1,6 +1,11 @@
 const { getDb } = require('./db')
 const { setCommonHeaders, getSuperAdminNid, normalizeArabicDigits, verifyRequester, sendJson } = require('./helpers')
 
+// In-memory serverless cache to protect database egress and bandwidth
+let cachedStudentsData = null
+let lastStudentsFetchTime = 0
+const STUDENTS_CACHE_TTL = 30000 // 30 seconds
+
 module.exports = async function handler(req, res) {
   setCommonHeaders(res, 'GET,OPTIONS,PATCH,DELETE,POST,PUT')
 
@@ -15,6 +20,12 @@ module.exports = async function handler(req, res) {
     // 1. GET: Fetch all registered students & evaluations
     // -------------------------------------------------------------
     if (req.method === 'GET') {
+      const now = Date.now()
+      if (cachedStudentsData && (now - lastStudentsFetchTime < STUDENTS_CACHE_TTL)) {
+        res.setHeader('Cache-Control', 'public, s-maxage=25, stale-while-revalidate=50')
+        return sendJson(res, 200, cachedStudentsData)
+      }
+
       const result = await sql`
         SELECT u.id, u.national_id, u.full_name, u.email, u.phone, u.college, u.academic_year,
                u.committee_id, u.role, u.status, u.profile_photo, u.created_at,
@@ -56,13 +67,18 @@ module.exports = async function handler(req, res) {
         }
       })
 
-      return sendJson(res, 200, { success: true, students })
+      cachedStudentsData = { success: true, students }
+      lastStudentsFetchTime = Date.now()
+      res.setHeader('Cache-Control', 'public, s-maxage=25, stale-while-revalidate=50')
+      return sendJson(res, 200, cachedStudentsData)
     }
 
     // -------------------------------------------------------------
     // 2. PATCH / POST: Update Profile, Role, or Evaluation
     // -------------------------------------------------------------
     if (req.method === 'PATCH' || req.method === 'POST') {
+      cachedStudentsData = null
+      lastStudentsFetchTime = 0
       const { id, role, score, notes, photo, phone, email, requesterId, requesterNid } = req.body || {}
 
       if (!id) {
@@ -170,6 +186,8 @@ module.exports = async function handler(req, res) {
     // 3. DELETE: Remove student (Super Admin only)
     // -------------------------------------------------------------
     if (req.method === 'DELETE') {
+      cachedStudentsData = null
+      lastStudentsFetchTime = 0
       const body = req.body || {}
       const targetId = body.id || req.query.id
       const reqId = body.requesterId || req.query.requesterId

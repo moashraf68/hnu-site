@@ -673,22 +673,22 @@ app.addEventListener("change", e => {
   if (e.target.id === "photo-file-input") {
     const file = e.target.files && e.target.files[0];
     if (file) {
-      compressAndResizeImage(file, 1080, base64 => {
+      compressAndResizeImage(file, 400, base64 => {
         regPhotoBase64 = base64;
         const box = $("#photo-preview-box");
         if (box) box.innerHTML = `<img src="${regPhotoBase64}" alt="Preview" style="width:100%;height:100%;object-fit:cover">`;
-      }, 0.90);
+      }, 0.82);
     }
   }
 
   if (e.target.id === "edit-photo-file-input") {
     const file = e.target.files && e.target.files[0];
     if (file) {
-      compressAndResizeImage(file, 1080, base64 => {
+      compressAndResizeImage(file, 400, base64 => {
         editPhotoBase64 = base64;
         const box = $("#edit-photo-preview-box");
         if (box) box.innerHTML = `<img src="${editPhotoBase64}" alt="Preview" style="width:100%;height:100%;object-fit:cover">`;
-      }, 0.90);
+      }, 0.82);
     }
   }
 
@@ -1386,7 +1386,7 @@ app.addEventListener("change", e => {
 
 async function syncSuggestionsWithCloud() {
   try {
-    const res = await fetch('/api/suggestions?t=' + Date.now(), { cache: 'no-store' });
+    const res = await fetch('/api/suggestions');
     if (!res.ok) return;
     const data = await res.json();
     if (data.success && Array.isArray(data.suggestions)) {
@@ -1405,7 +1405,7 @@ async function syncSuggestionsWithCloud() {
 
 async function syncGalleryWithCloud() {
   try {
-    const res = await fetch('/api/gallery?t=' + Date.now(), { cache: 'no-store' });
+    const res = await fetch('/api/gallery');
     if (!res.ok) return;
     const data = await res.json();
     if (data.success && Array.isArray(data.items)) {
@@ -1424,7 +1424,7 @@ async function syncGalleryWithCloud() {
 
 async function syncAttendanceWithCloud() {
   try {
-    const res = await fetch('/api/attendance?t=' + Date.now(), { cache: 'no-store' });
+    const res = await fetch('/api/attendance');
     if (!res.ok) return;
     const data = await res.json();
     if (data.success) {
@@ -1481,9 +1481,9 @@ async function syncAttendanceWithCloud() {
   } catch (err) {}
 }
 
-async function syncWithCloud(forceRender) {
+async function syncStudentsOnly(forceRender) {
   try {
-    const res = await fetch('/api/students?t=' + Date.now(), { cache: 'no-store' });
+    const res = await fetch('/api/students');
     if (!res.ok) return;
     const data = await res.json();
     if (data.success && Array.isArray(data.students)) {
@@ -1506,7 +1506,10 @@ async function syncWithCloud(forceRender) {
   } catch (err) {
     // Graceful offline fallback
   }
+}
 
+async function syncWithCloud(forceRender) {
+  await syncStudentsOnly(forceRender);
   syncSuggestionsWithCloud();
   syncGalleryWithCloud();
   syncAttendanceWithCloud();

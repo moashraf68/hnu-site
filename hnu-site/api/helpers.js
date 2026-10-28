@@ -9,11 +9,15 @@ function getSuperAdminNid() {
   return (process.env.SUPER_ADMIN_NID || DEFAULT_SUPER_NID).trim();
 }
 
-function setCommonHeaders(res, methods = 'GET,OPTIONS,POST,PATCH,DELETE') {
+function setCommonHeaders(res, methods = 'GET,OPTIONS,POST,PATCH,DELETE', cacheControl = null) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', methods);
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  if (cacheControl) {
+    res.setHeader('Cache-Control', cacheControl);
+  } else {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  }
 }
 
 function normalizeArabicDigits(str) {

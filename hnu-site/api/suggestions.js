@@ -1,6 +1,11 @@
 const { getDb } = require('./db')
 const { setCommonHeaders, sendJson } = require('./helpers')
 
+// In-memory cache for suggestions
+let cachedSugs = null
+let lastSugsCacheTime = 0
+const SUGS_CACHE_TTL = 30000 // 30 seconds
+
 module.exports = async function handler(req, res) {
   setCommonHeaders(res, 'GET,OPTIONS,POST,PATCH,DELETE')
 
@@ -13,6 +18,12 @@ module.exports = async function handler(req, res) {
   try {
     // 1. GET: List all suggestions
     if (req.method === 'GET') {
+      const now = Date.now()
+      if (cachedSugs && (now - lastSugsCacheTime < SUGS_CACHE_TTL)) {
+        res.setHeader('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60')
+        return sendJson(res, 200, cachedSugs)
+      }
+
       const result = await sql`
         SELECT id, name, email, activity_name, audience, description, is_reviewed, created_at
         FROM suggestions
@@ -30,11 +41,16 @@ module.exports = async function handler(req, res) {
         date: r.created_at ? new Date(r.created_at).toISOString().slice(0, 10) : '2026-10-19'
       }))
 
-      return sendJson(res, 200, { success: true, suggestions: sugs })
+      cachedSugs = { success: true, suggestions: sugs }
+      lastSugsCacheTime = Date.now()
+      res.setHeader('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60')
+      return sendJson(res, 200, cachedSugs)
     }
 
     // 2. POST: Submit a new suggestion
     if (req.method === 'POST') {
+      cachedSugs = null
+      lastSugsCacheTime = 0
       const { name, email, activity, audience, message } = req.body || {}
 
       if (!name || !activity || !message) {
@@ -51,6 +67,8 @@ module.exports = async function handler(req, res) {
 
     // 3. PATCH: Toggle review status
     if (req.method === 'PATCH') {
+      cachedSugs = null
+      lastSugsCacheTime = 0
       const { id } = req.body || {}
       if (!id) {
         return sendJson(res, 400, { success: false, error: 'معرف الاقتراح مطلوب.' })
@@ -67,6 +85,8 @@ module.exports = async function handler(req, res) {
 
     // 4. DELETE: Delete suggestion
     if (req.method === 'DELETE') {
+      cachedSugs = null
+      lastSugsCacheTime = 0
       const body = req.body || {}
       const targetId = body.id || req.query.id
 

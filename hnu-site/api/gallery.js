@@ -1,6 +1,11 @@
 const { getDb } = require('./db')
 const { setCommonHeaders, verifyRequester, sendJson } = require('./helpers')
 
+// In-memory cache for media gallery
+let cachedGallery = null
+let lastGalCacheTime = 0
+const GAL_CACHE_TTL = 60000 // 60 seconds
+
 const DEFAULT_GALLERY_FILES = [
   "/assets/images/gallery-1.jpg",
   "/assets/images/gallery-2.jpg",
@@ -37,6 +42,12 @@ module.exports = async function handler(req, res) {
 
     // 1. GET: List all media items
     if (req.method === 'GET') {
+      const now = Date.now()
+      if (cachedGallery && (now - lastGalCacheTime < GAL_CACHE_TTL)) {
+        res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120')
+        return sendJson(res, 200, cachedGallery)
+      }
+
       let result = await sql`
         SELECT id, url, type, title, created_at
         FROM gallery
@@ -66,11 +77,16 @@ module.exports = async function handler(req, res) {
         createdAt: r.created_at ? new Date(r.created_at).toISOString().slice(0, 10) : ''
       }))
 
-      return sendJson(res, 200, { success: true, items })
+      cachedGallery = { success: true, items }
+      lastGalCacheTime = Date.now()
+      res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120')
+      return sendJson(res, 200, cachedGallery)
     }
 
     // 2. POST: Add item (Super Admin only)
     if (req.method === 'POST') {
+      cachedGallery = null
+      lastGalCacheTime = 0
       const { url, type, title, requesterId, requesterNid } = req.body || {}
 
       if (!url) {
@@ -101,6 +117,8 @@ module.exports = async function handler(req, res) {
 
     // 3. DELETE: Remove item (Super Admin only)
     if (req.method === 'DELETE') {
+      cachedGallery = null
+      lastGalCacheTime = 0
       const body = req.body || {}
       const targetId = body.id || req.query.id
       const targetUrl = body.url || req.query.url
