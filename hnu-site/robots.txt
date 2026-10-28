@@ -1,0 +1,12 @@
+# robots.txt - HNU Students For Egypt Platform
+User-agent: *
+Allow: /
+Allow: /committees
+Allow: /committees/*
+Allow: /portal
+Allow: /register
+
+# Disallow internal API calls from crawler indexing
+Disallow: /api/
+
+Sitemap: https://for-egypt-hnu.vercel.app/sitemap.xml
